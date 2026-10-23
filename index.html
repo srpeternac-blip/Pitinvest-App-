@@ -709,8 +709,46 @@ async function cargarSemana(off){
 }
 
 /* ═══════════ Macro ═══════════ */
-const IMPORTANTES = /n[oó]mina|nonfarm|payroll|unemployment|paro|jobless|\bcpi\b|\bipc\b|inflation|inflaci|\bpce\b|\bgdp\b|\bpib\b|fomc|\bfed\b|interest rate|tipos|retail sales|ventas minoristas|\bpmi\b|\bism\b|consumer confidence|confianza|durable goods|housing starts|michigan|beige/i;
-const MUY_IMPORTANTES = /n[oó]mina|nonfarm|payroll|\bcpi\b|\bipc\b|fomc|\bfed\b|\bpce\b|\bgdp\b|\bpib\b/i;
+/* Solo lo de tres estrellas de Estados Unidos. Lista cerrada a propósito:
+   cualquier cosa que no esté aquí no entra, por mucho que lo publique Nasdaq.
+   Traducción al español para que la pantalla se lea de un vistazo. */
+const TRES_ESTRELLAS = [
+  [/nonfarm payroll|employment situation|non-farm payroll/i, 'Nóminas no agrícolas'],
+  [/unemployment rate/i,                                     'Tasa de paro'],
+  [/average hourly earnings/i,                               'Salario medio por hora'],
+  [/\bcore cpi\b|cpi.*(core|ex food)/i,                      'IPC subyacente'],
+  [/\bcpi\b|consumer price index/i,                          'IPC'],
+  [/\bcore ppi\b/i,                                          'IPP subyacente'],
+  [/\bppi\b|producer price index/i,                          'IPP'],
+  [/core pce|pce price index/i,                              'PCE subyacente'],
+  [/\bgdp\b|gross domestic product/i,                        'PIB'],
+  [/fomc|federal funds rate|interest rate decision|rate decision/i, 'Decisión de tipos de la Fed'],
+  [/fed chair|powell/i,                                      'Comparecencia del presidente de la Fed'],
+  [/retail sales/i,                                          'Ventas minoristas'],
+  [/ism.*(manufacturing|mfg)/i,                              'ISM manufacturero'],
+  [/ism.*(services|non-manufacturing)/i,                     'ISM de servicios'],
+  [/initial jobless claims/i,                                'Paro semanal'],
+  [/\bcb consumer confidence|consumer confidence index/i,     'Confianza del consumidor'],
+  [/michigan consumer sentiment/i,                           'Confianza de Michigan'],
+  [/durable goods orders/i,                                  'Pedidos de bienes duraderos'],
+  [/crude oil inventories/i,                                 'Inventarios de crudo']
+];
+const ES_EEUU = (r) => {
+  const c = String(r.country || r.countryCode || r.region || '').toLowerCase().trim();
+  return !c || /^(us|usa|u\.s\.|united states|estados unidos)$/.test(c);
+};
+/* Nasdaq da la hora en Nueva York; aquí se quiere en Madrid, y el desfase
+   cambia según la semana porque los cambios de hora no coinciden. */
+function etAMadrid(iso, hhmm){
+  const m = String(hhmm || '').match(/(\d{1,2}):(\d{2})/);
+  if(!m) return '';
+  const comoUTC = new Date(`${iso}T${dosD(m[1])}:${m[2]}:00Z`);
+  if(isNaN(comoUTC)) return '';
+  const enNY  = new Date(comoUTC.toLocaleString('en-US', {timeZone:'America/New_York'}));
+  const enUTC = new Date(comoUTC.toLocaleString('en-US', {timeZone:'UTC'}));
+  const instante = new Date(comoUTC.getTime() + (enUTC - enNY));
+  return instante.toLocaleTimeString('es-ES', {timeZone:'Europe/Madrid', hour:'2-digit', minute:'2-digit'});
+}
 async function cargarMacroSemana(off){
   const dias = semanaLV(off);
   await Promise.allSettled(dias.map(async d => {
@@ -719,10 +757,18 @@ async function cargarMacroSemana(off){
     try{
       const j = await nasdaq('calendar/economicevents?date=' + iso);
       const filas = (j && j.data && j.data.rows) || [];
-      const ev = filas
-        .map(r => ({ hora: String(r.gmt || r.time || '').trim(), evento: String(r.eventName || r.event || '').trim() }))
-        .filter(x => x.evento && IMPORTANTES.test(x.evento))
-        .map(x => ({...x, importancia: MUY_IMPORTANTES.test(x.evento) ? 'alta' : 'media'}));
+      const ev = [];
+      for(const r of filas){
+        if(!ES_EEUU(r)) continue;
+        const bruto = String(r.eventName || r.event || '').trim();
+        const match = TRES_ESTRELLAS.find(([re]) => re.test(bruto));
+        if(!match) continue;
+        ev.push({
+          hora: etAMadrid(iso, r.gmt || r.time || ''),
+          evento: match[1],
+          importancia: 'alta'
+        });
+      }
       if(ev.length) macroApi[iso] = ev;
     }catch(e){}
   }));
@@ -769,8 +815,20 @@ function grupo(titulo, cls, arr){
   const mias = arr.filter(x => posicionDe(x.ticker));
   const otras = arr.filter(x => !posicionDe(x.ticker)).slice(0, MAX_POR_SESION);
   if(!mias.length && !otras.length) return '';
-  return `<div class="grupo"><div class="ses-tit ${cls}">${esc(titulo)}</div>` +
+  return `<div class="grupo">${titulo ? `<div class="ses-tit ${cls}">${esc(titulo)}</div>` : ''}` +
     [...mias, ...otras].map(filaCol).join('') + '</div>';
+}
+/* Nasdaq solo marca la sesión de hoy en adelante; en días ya pasados la deja en
+   blanco para todas. Cuando no hay ninguna marcada, se listan sin encabezado
+   en vez de meterlas todas bajo un "sin confirmar" que no dice nada. */
+function porSesiones(res){
+  const bmo = res.filter(x => x.sesion === 'BMO');
+  const amc = res.filter(x => x.sesion === 'AMC');
+  const unk = res.filter(x => x.sesion === 'UNK');
+  if(!bmo.length && !amc.length) return grupo('', '', unk);
+  return grupo('Antes de apertura','ses-bmo',bmo)
+       + grupo('Tras el cierre','ses-amc',amc)
+       + grupo('Sin confirmar','ses-unk',unk);
 }
 function filaMacro(m){
   const imp = (m.importancia || '').toLowerCase();
@@ -854,9 +912,7 @@ function pintarCalendario(){
       if(res == null) cuerpo = '<div class="col-v"><span class="spin"></span></div>';
       else if(!res.length) cuerpo = '<div class="col-v">Nada</div>';
       else{
-        cuerpo = grupo('Antes de apertura','ses-bmo',res.filter(x => x.sesion === 'BMO'))
-               + grupo('Tras el cierre','ses-amc',res.filter(x => x.sesion === 'AMC'))
-               + grupo('Sin confirmar','ses-unk',res.filter(x => x.sesion === 'UNK'));
+        cuerpo = porSesiones(res);
         if(!cuerpo) cuerpo = '<div class="col-v">Nada tuyo</div>';
       }
       return `<div class="col ${iso===hoy?'hoy':''}">
