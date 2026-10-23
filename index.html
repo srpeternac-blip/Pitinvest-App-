@@ -397,9 +397,17 @@ h4.sec:first-child{margin-top:0}
    CSV_URL es un atajo: una URL completa ahí manda sobre todo lo demás. */
 const PUB = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRNo2O9533CznKAtQ6BRYvGHOVYDUaMv9qcrSCErlvENSyF6U35fckkGL7-x0QQtnAhSSaMpFL9BbiO/pub';
 const GID = { FICHAS:'0', HISTORIAL:'457418746', CALENDARIO:'877920489', MACRO:'1130086902',
-              PENDIENTES:'1011136016', CARTERA:'1809956370', SECTORES:'402170160' };
+              PENDIENTES:'1011136016', SECTORES:'402170160' };
 const SHEET_ID = '13N6wS20II5XgOq5HtqdTfccvZFJuT4q7_jrao8Koyzg';
-const CSV_URL = { FICHAS:'', HISTORIAL:'', CALENDARIO:'', MACRO:'', PENDIENTES:'', CARTERA:'', SECTORES:'' };
+const CSV_URL = { FICHAS:'', HISTORIAL:'', CALENDARIO:'', MACRO:'', PENDIENTES:'', SECTORES:'' };
+
+/* La cartera completa vive en su propio Sheet ("cartera para ia"), que se
+   actualiza solo y no lleva cifras. Solo se usa para saber qué es suyo.
+   Para que la app lo lea hay que publicarlo: Archivo → Compartir → Publicar en
+   la web. Pega aquí la URL que te dé (la que empieza por .../d/e/2PACX-…/pub);
+   mientras esté vacío se intenta por id, que no siempre deja leerlo desde fuera. */
+const CARTERA_SHEET_ID = '1PXihCz2FIJjIVPAFCWLg5F9cTItCWeG9wTy6_6gdqiE';
+const CARTERA_PUB = '';
 const CERCA = 0.08;               // ámbar si falta un 8% o menos para el nivel
 const DIAS_PENDIENTES = 7;
 const LS = 'fichas_cache_v2';
@@ -407,9 +415,15 @@ const LS_WORKER = 'momentum_worker_url';   // misma clave que la app anterior: c
 
 const gviz = (tab) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
 const pub  = (tab) => `${PUB}?gid=${GID[tab]}&single=true&output=csv`;
+const cacheBust = (b) => b + (b.includes('?') ? '&' : '?') + 't=' + Date.now();
 function urlDe(tab){
-  const b = (CSV_URL[tab] || '').trim() || (GID[tab] != null ? pub(tab) : gviz(tab));
-  return b + (b.includes('?') ? '&' : '?') + 't=' + Date.now();
+  return cacheBust((CSV_URL[tab] || '').trim() || (GID[tab] != null ? pub(tab) : gviz(tab)));
+}
+function urlCartera(){
+  const p = (CARTERA_PUB || '').trim();
+  return cacheBust(p
+    ? p + (p.includes('output=csv') ? '' : (p.includes('?') ? '&' : '?') + 'single=true&output=csv')
+    : `https://docs.google.com/spreadsheets/d/${CARTERA_SHEET_ID}/gviz/tq?tqx=out:csv`);
 }
 
 const $ = (s) => document.querySelector(s);
@@ -530,6 +544,36 @@ function aObjetos(rows, cols){
 }
 const filasAObjetos = (rows) => aObjetos(rows, COLS).filter(o => has(o.TICKER));
 
+/* La cartera viene por bloques en columnas: una etiqueta arriba (swing, opciones…)
+   y debajo pares ticker/nombre. Se recorre la rejilla entera para que siga
+   funcionando si mañana añade un bloque más o cambia el orden.
+   Un ticker puede traer prefijo de bolsa (tse:IVN): se queda con la parte del ticker. */
+const limpiaTicker = (s) => {
+  const t = String(s||'').trim();
+  return (t.includes(':') ? t.split(':').pop() : t).trim().toUpperCase();
+};
+function parseCartera(rows){
+  if(!rows.length) return [];
+  const out = [], vistos = new Set();
+  const ancho = Math.max(...rows.map(r => r.length));
+  for(let c = 0; c < ancho; c++){
+    const pares = rows.filter(r => has(r[c]) && has(r[c+1]));
+    if(pares.length < 2) continue;                       // no es un bloque de tickers
+    let etiqueta = '';
+    for(const r of rows){                                // la etiqueta no tiene nombre al lado
+      if(has(r[c]) && !has(r[c+1])){ etiqueta = String(r[c]).trim(); break; }
+    }
+    for(const r of pares){
+      const tk = limpiaTicker(r[c]);
+      if(!tk || tk === etiqueta.toUpperCase()) continue;
+      if(vistos.has(tk)) continue;
+      vistos.add(tk);
+      out.push({TICKER: tk, NOMBRE: String(r[c+1]).trim(), CUENTA: etiqueta.toUpperCase()});
+    }
+  }
+  return out;
+}
+
 /* ═══════════ Carga del Sheet ═══════════ */
 async function pedir(tab){
   const r = await fetch(urlDe(tab));
@@ -539,6 +583,10 @@ async function pedir(tab){
   return t;
 }
 const pedirSuave = (tab) => pedir(tab).catch(() => '');
+const pedirCartera = () => fetch(urlCartera())
+  .then(r => r.ok ? r.text() : '')
+  .then(t => /^\s*</.test(t) ? '' : t)
+  .catch(() => '');
 
 async function cargar(){
   const hs = $('#hstat');
@@ -546,7 +594,7 @@ async function cargar(){
   try{
     const [f, h, c, m, p, ca, se] = await Promise.all([
       pedir('FICHAS'), pedirSuave('HISTORIAL'), pedirSuave('CALENDARIO'),
-      pedirSuave('MACRO'), pedirSuave('PENDIENTES'), pedirSuave('CARTERA'), pedirSuave('SECTORES')
+      pedirSuave('MACRO'), pedirSuave('PENDIENTES'), pedirCartera(), pedirSuave('SECTORES')
     ]);
     fichas = filasAObjetos(parseCSV(f));
     if(!fichas.length) throw new Error('VACIO');
@@ -554,7 +602,7 @@ async function cargar(){
     calendario = aObjetos(parseCSV(c), ['FECHA','SESION','TICKER','NOMBRE','MERCADO','NOTA']).filter(x => has(x.TICKER));
     macro = aObjetos(parseCSV(m), ['FECHA','HORA','EVENTO','IMPORTANCIA','NOTA']).filter(x => has(x.EVENTO));
     pendientes = aObjetos(parseCSV(p), ['FECHA_LIMITE','ASUNTO','DETALLE','ESTADO','CREADO']).filter(x => has(x.ASUNTO));
-    cartera = aObjetos(parseCSV(ca), ['TICKER','NOMBRE','CUENTA','ESTADO','NIVEL_ENTRADA','ACTUALIZADO']).filter(x => has(x.TICKER));
+    cartera = parseCartera(parseCSV(ca));
     sectores = aObjetos(parseCSV(se), ['SECTOR_YAHOO','NOMBRE_ES','PER','EV_EBITDA','P_FCF','FUENTE','ACTUALIZADO']).filter(x => has(x.SECTOR_YAHOO));
     try{ localStorage.setItem(LS, JSON.stringify({ts:Date.now(), fichas, historial, calendario, macro, pendientes, cartera, sectores})); }catch(e){}
     pintarTodo(new Date());
@@ -618,27 +666,27 @@ const sectorDe = (s) => sectores.find(x => x.SECTOR_YAHOO.toLowerCase() === Stri
 function posicionDe(tk){
   const f = fichaDe(tk), c = carteraDe(tk);
   if(!f && !c) return null;
-  const est = ((f && f.ESTADO) || (c && c.ESTADO) || 'cartera').toLowerCase();
-  if(est === 'descartada') return null;
+  const est = ((f && f.ESTADO) || 'cartera').toLowerCase();   // si está en el Sheet de cartera, la tiene
+  if(est === 'descartada' && !c) return null;
   return {
     ficha: f,
-    clase: est === 'watchlist' ? 'watchlist' : 'cartera',
+    cuenta: (c && c.CUENTA) || (f && f.CARTERA) || '',
+    clase: est === 'watchlist' && !c ? 'watchlist' : 'cartera',
     precio: f ? num(f.PRECIO) : null,           // el precio en vivo solo está en FICHAS
-    entrada: f ? num(f.ENTRADA_1) : (c ? num(c.NIVEL_ENTRADA) : null)
+    entrada: f ? num(f.ENTRADA_1) : null
   };
 }
 
 /* ═══════════ Resultados ═══════════ */
 /* Fila compacta, para las columnas de la semana */
+/* En el calendario solo interesa qué empresa presenta y qué día: sin precios ni niveles */
 function filaCol(c){
   const p = posicionDe(c.TICKER);
   const f = p && p.ficha;
-  const d = p ? distancia(p.precio, p.entrada, 'entrada') : null;
   const et = f ? 'button' : 'div';
   return `<${et} class="cr ${p?p.clase:''}" ${f?`data-ir="${esc(f.TICKER)}"`:''}>
     <span class="cr-t">${esc(c.TICKER)}</span>
     <span class="cr-n">${esc(c.NOMBRE || '')}</span>
-    ${d && d.cls !== 'far' ? `<span class="cr-b ${d.cls}">${esc(d.corto)}</span>` : ''}
   </${et}>` + (has(c.NOTA) ? `<div class="cr-nota">${esc(c.NOTA)}</div>` : '');
 }
 /* Fila ancha, para la agenda */
