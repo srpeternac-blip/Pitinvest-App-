@@ -427,8 +427,8 @@ function urlsCartera(){
   const p = (CARTERA_PUB || '').trim().replace(/\/pubhtml.*$/, '/pub');
   const u = [];
   if(p){
+    u.push(p + '?output=csv');                 // la forma que ya usa PITrader App con este Sheet
     u.push(p + '?gid=0&single=true&output=csv');
-    u.push(p + '?single=true&output=csv');
   }
   u.push(`https://docs.google.com/spreadsheets/d/${CARTERA_SHEET_ID}/gviz/tq?tqx=out:csv`);
   return u.map(cacheBust);
@@ -530,7 +530,7 @@ function yahooDe(gf, tk){
 /* ═══════════ Estado ═══════════ */
 let fichas = [], historial = [], calendario = [], macro = [], pendientes = [], cartera = [], sectores = [], sel = null;
 let filtroEstado = 'todas', query = '', vista = 'agenda';
-let offCal = 0, offMacro = 0;
+let offCal = 0, offMacro = 0, calAjustado = false;
 let workerUrl = localStorage.getItem(LS_WORKER) || '';
 
 const COLS = ['TICKER','NOMBRE','SIMBOLO_GF','ESTADO','CARTERA','QUE_HACE','SECTOR','PRECIO','PER',
@@ -650,6 +650,7 @@ function pintarTodo(ts, deCache){
   const n = fichas.length;
   $('#hstat').innerHTML = '<b>' + n + ' empresa' + (n===1?'':'s') + '</b>' +
     (deCache ? 'copia local' : ts.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
+  if(!calAjustado){ calAjustado = true; offCal = primeraSemanaConResultados(); }
   pintarAgenda(); pintarCalendario(); pintarMacro(); pintarFiltros(); pintarLista();
   const hash = decodeURIComponent((location.hash || '').replace('#','')).toUpperCase();
   const quiere = sel || hash;
@@ -814,6 +815,15 @@ function pintarAgenda(){
         </div>`;
       }).join('') : '<div class="vacio">Nada hoy.</div>'}
     </div>`;
+}
+
+/* El calendario suele ir por delante: si en la semana en curso no presenta nadie,
+   se abre directamente en la primera semana que sí tenga resultados. */
+function primeraSemanaConResultados(){
+  for(let k = 0; k <= 8; k++){
+    if(semanaLV(k).some(d => resultadosDe(aISO(d)).length)) return k;
+  }
+  return 0;
 }
 
 /* ═══════════ CALENDARIO — semana en columnas, solo resultados ═══════════ */
