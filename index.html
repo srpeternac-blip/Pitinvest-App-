@@ -240,6 +240,7 @@ h4.sec:first-child{margin-top:0}
 .crit .val.ok{color:var(--green)} .crit .val.mid{color:var(--warn)} .crit .val.ko{color:var(--red)} .crit .val.nd{color:var(--ink3)}
 .crit .rng{color:var(--ink3);font-weight:400;font-family:var(--mono);font-size:12.5px;text-transform:none}
 .med{font-family:var(--mono);font-size:12.5px;color:var(--ink3);border:1px solid var(--line);border-radius:6px;padding:3px 9px;background:var(--panel2)}
+.med.sec{color:var(--blue);border-color:rgba(143,184,221,.35);background:rgba(143,184,221,.07)}
 .trendwrap{display:inline-flex;align-items:center;gap:7px}
 .trendwrap svg{display:block}
 .trendlab{font-family:var(--mono);font-size:12px}
@@ -395,9 +396,10 @@ h4.sec:first-child{margin-top:0}
    Si añades una pestaña nueva, su gid sale en la URL del Sheet al abrirla (…#gid=XXXXX).
    CSV_URL es un atajo: una URL completa ahí manda sobre todo lo demás. */
 const PUB = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRNo2O9533CznKAtQ6BRYvGHOVYDUaMv9qcrSCErlvENSyF6U35fckkGL7-x0QQtnAhSSaMpFL9BbiO/pub';
-const GID = { FICHAS:'0', HISTORIAL:'457418746', CALENDARIO:'877920489', MACRO:'1130086902', PENDIENTES:'1011136016' };
+const GID = { FICHAS:'0', HISTORIAL:'457418746', CALENDARIO:'877920489', MACRO:'1130086902',
+              PENDIENTES:'1011136016', CARTERA:'1809956370', SECTORES:'402170160' };
 const SHEET_ID = '13N6wS20II5XgOq5HtqdTfccvZFJuT4q7_jrao8Koyzg';
-const CSV_URL = { FICHAS:'', HISTORIAL:'', CALENDARIO:'', MACRO:'', PENDIENTES:'' };
+const CSV_URL = { FICHAS:'', HISTORIAL:'', CALENDARIO:'', MACRO:'', PENDIENTES:'', CARTERA:'', SECTORES:'' };
 const CERCA = 0.08;               // ámbar si falta un 8% o menos para el nivel
 const DIAS_PENDIENTES = 7;
 const LS = 'fichas_cache_v2';
@@ -504,7 +506,7 @@ function yahooDe(gf, tk){
 }
 
 /* ═══════════ Estado ═══════════ */
-let fichas = [], historial = [], calendario = [], macro = [], pendientes = [], sel = null;
+let fichas = [], historial = [], calendario = [], macro = [], pendientes = [], cartera = [], sectores = [], sel = null;
 let filtroEstado = 'todas', query = '', vista = 'agenda';
 let offCal = 0, offMacro = 0;
 let workerUrl = localStorage.getItem(LS_WORKER) || '';
@@ -542,9 +544,9 @@ async function cargar(){
   const hs = $('#hstat');
   hs.innerHTML = '<b>—</b><span class="spin"></span>';
   try{
-    const [f, h, c, m, p] = await Promise.all([
+    const [f, h, c, m, p, ca, se] = await Promise.all([
       pedir('FICHAS'), pedirSuave('HISTORIAL'), pedirSuave('CALENDARIO'),
-      pedirSuave('MACRO'), pedirSuave('PENDIENTES')
+      pedirSuave('MACRO'), pedirSuave('PENDIENTES'), pedirSuave('CARTERA'), pedirSuave('SECTORES')
     ]);
     fichas = filasAObjetos(parseCSV(f));
     if(!fichas.length) throw new Error('VACIO');
@@ -552,7 +554,9 @@ async function cargar(){
     calendario = aObjetos(parseCSV(c), ['FECHA','SESION','TICKER','NOMBRE','MERCADO','NOTA']).filter(x => has(x.TICKER));
     macro = aObjetos(parseCSV(m), ['FECHA','HORA','EVENTO','IMPORTANCIA','NOTA']).filter(x => has(x.EVENTO));
     pendientes = aObjetos(parseCSV(p), ['FECHA_LIMITE','ASUNTO','DETALLE','ESTADO','CREADO']).filter(x => has(x.ASUNTO));
-    try{ localStorage.setItem(LS, JSON.stringify({ts:Date.now(), fichas, historial, calendario, macro, pendientes})); }catch(e){}
+    cartera = aObjetos(parseCSV(ca), ['TICKER','NOMBRE','CUENTA','ESTADO','NIVEL_ENTRADA','ACTUALIZADO']).filter(x => has(x.TICKER));
+    sectores = aObjetos(parseCSV(se), ['SECTOR_YAHOO','NOMBRE_ES','PER','EV_EBITDA','P_FCF','FUENTE','ACTUALIZADO']).filter(x => has(x.SECTOR_YAHOO));
+    try{ localStorage.setItem(LS, JSON.stringify({ts:Date.now(), fichas, historial, calendario, macro, pendientes, cartera, sectores})); }catch(e){}
     pintarTodo(new Date());
   }catch(e){
     let cache = null;
@@ -560,6 +564,7 @@ async function cargar(){
     if(cache && cache.fichas && cache.fichas.length){
       fichas = cache.fichas; historial = cache.historial || [];
       calendario = cache.calendario || []; macro = cache.macro || []; pendientes = cache.pendientes || [];
+      cartera = cache.cartera || []; sectores = cache.sectores || [];
       pintarTodo(new Date(cache.ts), true);
     }else{
       $('#list').innerHTML = '';
@@ -602,21 +607,35 @@ function distancia(precio, nivel, tipo){
     ? {cls:'hit', txt:'en nivel' + (falta < -0.001 ? ' (' + fmtNum(falta*100,1) + '%)' : ''), corto:'en nivel'}
     : {cls: falta <= CERCA ? 'near' : 'far', txt:'a ' + fmtNum(falta*100,1) + '% por debajo', corto:'a ' + fmtNum(falta*100,0) + '%'};
 }
-const fichaDe = (tk) => fichas.find(f => f.TICKER.toUpperCase() === String(tk||'').trim().toUpperCase()) || null;
-/* 'cartera' | 'watchlist' | '' — decide si la fila va resaltada y de qué color */
-function relieve(f){
-  if(!f) return '';
-  const e = (f.ESTADO || '').toLowerCase();
-  return e === 'cartera' ? 'cartera' : e === 'watchlist' ? 'watchlist' : '';
+const norm = (tk) => String(tk||'').trim().toUpperCase();
+const fichaDe = (tk) => fichas.find(f => norm(f.TICKER) === norm(tk)) || null;
+const carteraDe = (tk) => cartera.find(c => norm(c.TICKER) === norm(tk)) || null;
+const sectorDe = (s) => sectores.find(x => x.SECTOR_YAHOO.toLowerCase() === String(s||'').trim().toLowerCase()) || null;
+
+/* Qué sabemos de un ticker. Dos fuentes: la ficha (si la tiene) y la pestaña
+   CARTERA, que lleva su cartera completa aunque todavía no haya ficha.
+   Devuelve null si el ticker no es suyo — esas filas van sin resaltar. */
+function posicionDe(tk){
+  const f = fichaDe(tk), c = carteraDe(tk);
+  if(!f && !c) return null;
+  const est = ((f && f.ESTADO) || (c && c.ESTADO) || 'cartera').toLowerCase();
+  if(est === 'descartada') return null;
+  return {
+    ficha: f,
+    clase: est === 'watchlist' ? 'watchlist' : 'cartera',
+    precio: f ? num(f.PRECIO) : null,           // el precio en vivo solo está en FICHAS
+    entrada: f ? num(f.ENTRADA_1) : (c ? num(c.NIVEL_ENTRADA) : null)
+  };
 }
 
 /* ═══════════ Resultados ═══════════ */
 /* Fila compacta, para las columnas de la semana */
 function filaCol(c){
-  const f = fichaDe(c.TICKER), r = relieve(f);
-  const d = f ? distancia(num(f.PRECIO), num(f.ENTRADA_1), 'entrada') : null;
+  const p = posicionDe(c.TICKER);
+  const f = p && p.ficha;
+  const d = p ? distancia(p.precio, p.entrada, 'entrada') : null;
   const et = f ? 'button' : 'div';
-  return `<${et} class="cr ${r}" ${f?`data-ir="${esc(f.TICKER)}"`:''}>
+  return `<${et} class="cr ${p?p.clase:''}" ${f?`data-ir="${esc(f.TICKER)}"`:''}>
     <span class="cr-t">${esc(c.TICKER)}</span>
     <span class="cr-n">${esc(c.NOMBRE || '')}</span>
     ${d && d.cls !== 'far' ? `<span class="cr-b ${d.cls}">${esc(d.corto)}</span>` : ''}
@@ -624,11 +643,12 @@ function filaCol(c){
 }
 /* Fila ancha, para la agenda */
 function filaResultado(c){
-  const f = fichaDe(c.TICKER), r = relieve(f);
+  const p = posicionDe(c.TICKER);
+  const f = p && p.ficha;
   const ses = (c.SESION || '').toUpperCase();
-  const d = f ? distancia(num(f.PRECIO), num(f.ENTRADA_1), 'entrada') : null;
+  const d = p ? distancia(p.precio, p.entrada, 'entrada') : null;
   const et = f ? 'button' : 'div';
-  return `<${et} class="er ${r}" ${f?`data-ir="${esc(f.TICKER)}"`:''}>
+  return `<${et} class="er ${p?p.clase:''}" ${f?`data-ir="${esc(f.TICKER)}"`:''}>
     ${ses ? `<span class="ses-b b-${ses==='AMC'?'amc':'bmo'}">${esc(ses)}</span>` : ''}
     <span class="er-t">${esc(c.TICKER)}</span>
     <span class="er-n">${esc(c.NOMBRE || '')}</span>
@@ -640,7 +660,7 @@ function filaResultado(c){
 }
 /* Primero cartera, después watchlist, después el resto */
 const ordenar = (arr) => [...arr].sort((a,b) => {
-  const peso = (x) => { const r = relieve(fichaDe(x.TICKER)); return r==='cartera'?0:r==='watchlist'?1:2; };
+  const peso = (x) => { const p = posicionDe(x.TICKER); return !p?2:p.clase==='cartera'?0:1; };
   return peso(a) - peso(b) || String(a.TICKER).localeCompare(String(b.TICKER), 'es');
 });
 function bloqueSesion(titulo, arr, compacta){
@@ -692,7 +712,7 @@ function pintarAgenda(){
   const hoy = hoyISO(), hoyD = new Date();
   const res = resultadosDe(hoy), mac = macroDe(hoy);
   const bmo = res.filter(c => !esAMC(c)), amc = res.filter(esAMC);
-  const mias = res.filter(c => relieve(fichaDe(c.TICKER))).length;
+  const mias = res.filter(c => posicionDe(c.TICKER)).length;
 
   const abiertas = pendientes.filter(p => (p.ESTADO || 'abierto').toLowerCase() !== 'cerrado');
   const pend = abiertas.map(p => ({...p, dias: diasHasta(p.FECHA_LIMITE)}))
@@ -987,11 +1007,13 @@ function mediana(a){
   const b = [...a].sort((x,y) => x-y), n = b.length;
   return n % 2 ? b[(n-1)/2] : (b[n/2-1] + b[n/2]) / 2;
 }
-/* La mediana histórica se muestra al lado del múltiplo. El veredicto lo pone Piti. */
-function chipMediana(hist){
+/* Al lado del múltiplo: su mediana histórica y, si está en la pestaña SECTORES
+   del Sheet, la media del sector. El veredicto lo pone Piti. */
+function chipMediana(hist, sec){
   const m = mediana(hist);
-  return m ? `<span class="med">mediana ${fmtNum(m,1)}x</span>`
-           : '<span class="med" title="Yahoo no da histórico suficiente">sin histórico</span>';
+  return (m ? `<span class="med">mediana ${fmtNum(m,1)}x</span>`
+            : '<span class="med" title="Yahoo no da histórico suficiente">sin histórico</span>')
+       + (sec != null ? `<span class="med sec">sector ${fmtNum(sec,1)}x</span>` : '');
 }
 function aRow(label, valHtml, cls, extra, rng){
   return `<div class="crit">
@@ -1151,13 +1173,14 @@ function renderA(){
   filas.push(aRow('Flujo de caja libre',
     haceCaja == null ? 'N/D' : haceCaja ? 'Hace caja' : 'Quema caja',
     haceCaja == null ? 'nd' : haceCaja ? 'ok' : 'ko', spark(c.fcfA, c.cfQ)));
-  // 2. Múltiplos: el dato y su mediana. Sin veredicto.
+  // 2. Múltiplos: el dato, su mediana y la media del sector. Sin veredicto.
+  const S = sectorDe(c.sector);
   filas.push(aRow('PER forward', c.perFwd != null ? fmtNum(c.perFwd,1)+'x' : 'N/D',
-    c.perFwd==null?'nd':'', chipMediana(c.perFwdHist || c.perHist)));
+    c.perFwd==null?'nd':'', chipMediana(c.perFwdHist || c.perHist, S ? num(S.PER) : null)));
   filas.push(aRow('P/FCF', c.pfcf != null ? fmtNum(c.pfcf,1)+'x' : 'N/D',
-    c.pfcf==null?'nd':'', chipMediana(c.pfcfHist)));
+    c.pfcf==null?'nd':'', chipMediana(c.pfcfHist, S ? num(S.P_FCF) : null)));
   filas.push(aRow('EV/EBITDA', c.evEbitda != null ? fmtNum(c.evEbitda,1)+'x' : 'N/D',
-    c.evEbitda==null?'nd':'', chipMediana(c.evHist)));
+    c.evEbitda==null?'nd':'', chipMediana(c.evHist, S ? num(S.EV_EBITDA) : null)));
   // 3. Deuda
   filas.push(aRow('Deuda neta / EBITDA', c.ndEbitda != null ? fmtNum(c.ndEbitda,2)+'x' : 'N/D',
     c.ndEbitda==null?'nd':c.ndEbitda<3?'ok':c.ndEbitda<=4?'mid':'ko', '', 'menos de 3x'));
