@@ -87,6 +87,8 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .card>h3{font-family:var(--disp);font-size:17px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
   color:var(--ink2);margin-bottom:11px;display:flex;align-items:center;gap:9px}
 .card>h3 .cnt{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--ink3);letter-spacing:0;text-transform:none}
+.card.hoy{border-color:rgba(143,184,221,.55);box-shadow:0 0 0 1px rgba(143,184,221,.2)}
+.card .col-f{margin-left:0} .card .hoy-b{margin-left:auto}
 .sesion{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);
   margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line2)}
 .sesion:first-child{margin-top:0}
@@ -349,7 +351,7 @@ h4.sec:first-child{margin-top:0}
     </section>
 
     <section class="view" id="view-macro">
-      <div class="wrap ancho" id="macroV"></div>
+      <div class="wrap" id="macroV"></div>
     </section>
 
     <section class="view" id="view-fichas">
@@ -419,11 +421,17 @@ const cacheBust = (b) => b + (b.includes('?') ? '&' : '?') + 't=' + Date.now();
 function urlDe(tab){
   return cacheBust((CSV_URL[tab] || '').trim() || (GID[tab] != null ? pub(tab) : gviz(tab)));
 }
-function urlCartera(){
-  const p = (CARTERA_PUB || '').trim();
-  return cacheBust(p
-    ? p + (p.includes('output=csv') ? '' : (p.includes('?') ? '&' : '?') + 'single=true&output=csv')
-    : `https://docs.google.com/spreadsheets/d/${CARTERA_SHEET_ID}/gviz/tq?tqx=out:csv`);
+/* Varias formas de pedir el mismo CSV; se prueban en orden hasta que una responda.
+   La publicación necesita el gid de la pestaña: sin él Google devuelve HTML, no CSV. */
+function urlsCartera(){
+  const p = (CARTERA_PUB || '').trim().replace(/\/pubhtml.*$/, '/pub');
+  const u = [];
+  if(p){
+    u.push(p + '?gid=0&single=true&output=csv');
+    u.push(p + '?single=true&output=csv');
+  }
+  u.push(`https://docs.google.com/spreadsheets/d/${CARTERA_SHEET_ID}/gviz/tq?tqx=out:csv`);
+  return u.map(cacheBust);
 }
 
 const $ = (s) => document.querySelector(s);
@@ -583,10 +591,18 @@ async function pedir(tab){
   return t;
 }
 const pedirSuave = (tab) => pedir(tab).catch(() => '');
-const pedirCartera = () => fetch(urlCartera())
-  .then(r => r.ok ? r.text() : '')
-  .then(t => /^\s*</.test(t) ? '' : t)
-  .catch(() => '');
+async function pedirCartera(){
+  for(const u of urlsCartera()){
+    try{
+      const r = await fetch(u);
+      if(!r.ok) continue;
+      const t = await r.text();
+      if(/^\s*</.test(t) || !t.trim()) continue;   // devolvió HTML o nada: siguiente
+      return t;
+    }catch(e){ /* siguiente */ }
+  }
+  return '';
+}
 
 async function cargar(){
   const hs = $('#hstat');
@@ -727,15 +743,7 @@ function filaMacro(m){
     ${has(m.NOTA) ? `<span class="mr-n">${esc(m.NOTA)}</span>` : ''}
   </div>`;
 }
-function macroCol(m){
-  const imp = (m.IMPORTANCIA || '').toLowerCase();
-  const cls = ['alta','media','baja'].includes(imp) ? imp : 'baja';
-  return `<div class="mc">
-    <div class="mc-top"><span class="mc-h">${esc(m.HORA || '—')}</span><span class="mc-i ii-${cls}" title="${esc(m.IMPORTANCIA||'')}"></span></div>
-    <div class="mc-e">${esc(m.EVENTO)}</div>
-    ${has(m.NOTA) ? `<div class="mc-n">${esc(m.NOTA)}</div>` : ''}
-  </div>`;
-}
+
 const macroDe = (iso) => macro.filter(m => isoDe(m.FECHA) === iso)
   .sort((a,b) => String(a.HORA||'').localeCompare(String(b.HORA||'')));
 const resultadosDe = (iso) => calendario.filter(c => isoDe(c.FECHA) === iso);
@@ -829,22 +837,23 @@ function pintarCalendario(){
     (total === 0 ? '<div class="card" style="margin-top:13px"><div class="vacio">Ninguna empresa anotada en esta semana. Mueve la semana con las flechas, o pide al chat de Resultados que rellene la pestaña CALENDARIO del Sheet.</div></div>' : '');
 }
 
-/* ═══════════ MACRO — semana en columnas ═══════════ */
+/* ═══════════ MACRO — la semana en vertical, un día debajo de otro ═══════════ */
 function pintarMacro(){
   const dias = semanaLV(offMacro), hoy = hoyISO();
   const total = dias.reduce((a,d) => a + macroDe(aISO(d)).length, 0);
   $('#macroV').innerHTML = cabeceraSemana('Macro', 'Eventos de la semana · hora de Madrid', dias, offMacro, 'macro') +
-    '<div class="semana">' + dias.map(d => {
+    dias.map(d => {
       const iso = aISO(d), mac = macroDe(iso);
-      return `<div class="col ${iso===hoy?'hoy':''}">
+      return `<div class="card ${iso===hoy?'hoy':''}">
         <div class="col-h">
           <span class="col-n">${esc(DIAS[d.getDay()])}</span>
-          <span class="col-f">${d.getDate()}</span>
+          <span class="col-f">${esc(fmtCorto(d))}</span>
+          ${iso===hoy ? '<span class="hoy-b">HOY</span>' : ''}
         </div>
-        ${mac.length ? mac.map(macroCol).join('') : '<div class="col-v">Nada</div>'}
+        ${mac.length ? mac.map(filaMacro).join('') : '<div class="vacio">Nada este día.</div>'}
       </div>`;
-    }).join('') + '</div>' +
-    (total === 0 ? '<div class="card" style="margin-top:13px"><div class="vacio">Sin eventos macro en esta semana.</div></div>' : '');
+    }).join('') +
+    (total === 0 ? '<div class="card"><div class="vacio">Sin eventos macro en esta semana.</div></div>' : '');
 }
 
 /* ═══════════ Fichas: filtros y lista ═══════════ */
