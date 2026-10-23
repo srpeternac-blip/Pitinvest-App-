@@ -94,6 +94,9 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .wkb{border:1px solid var(--borde);background:var(--panel);border-radius:9px;color:var(--media);padding:8px 13px;font-size:14px}
 .wkb:hover{border-color:#43406d;color:var(--tinta)}
 .wkb.hoy{font-size:12.5px;font-family:var(--mono);letter-spacing:.06em}
+.wkb.todos{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.14em;padding:8px 15px;align-self:flex-end}
+.wkb.todos.on{background:var(--pos);border-color:var(--pos);color:#140f05}
+.wkb.todos.on:hover{filter:brightness(1.08);color:#140f05}
 
 .card{background:var(--panel);border:1px solid var(--borde);border-radius:14px;overflow:hidden;margin-bottom:13px}
 .card-cab{padding:12px 16px;background:var(--alto);border-bottom:1px solid var(--borde);display:flex;align-items:center;gap:10px;
@@ -401,6 +404,7 @@ const CAP_MINIMA = 10e9;          // "relevante" para las que no son suyas: capi
 const MAX_POR_SESION = 11;        // cuántas ajenas caben por sesión antes de cortar
 const LS = 'pitinvest_cache_v3';
 const LS_WORKER = 'momentum_worker_url';   // misma clave que PITrader App: comparten worker
+const LS_TODOS = 'pitinvest_todos';
 
 const cacheBust = (b) => b + (b.includes('?') ? '&' : '?') + 't=' + Date.now();
 const urlDe = (tab) => cacheBust(`${PUB}?gid=${GID[tab]}&single=true&output=csv`);
@@ -506,6 +510,8 @@ let semanasPedidas = new Set();
 let filtroEstado = 'todas', query = '', vista = 'agenda';
 let offCal = 0, offMacro = 0;
 let workerUrl = localStorage.getItem(LS_WORKER) || '';
+/* Botón TODOS del calendario: apagado = solo cartera y watchlist. Se recuerda. */
+let todos = localStorage.getItem(LS_TODOS) === '1';
 
 const COLS = ['TICKER','NOMBRE','SIMBOLO_GF','ESTADO','CARTERA','QUE_HACE','SECTOR','PRECIO','PER',
   'DITO_CRECE','DITO_VALORACION','DITO_DEUDA','DITO_RETRIBUCION','DITO_VEREDICTO',
@@ -842,11 +848,12 @@ function filaMacro(m){
 }
 const resultadosDe = (iso) => resultados[iso] || [];
 
-function cabeceraSemana(titulo, sub, dias, off, tipo){
+function cabeceraSemana(titulo, sub, dias, off, tipo, extra){
   const et = off === 0 ? 'Esta semana' : off === 1 ? 'Semana que viene' : off === -1 ? 'Semana pasada' : (off>0?'+':'') + off + ' semanas';
   return `<div class="espectro"></div>
   <div class="scr-h">
     <div><h1>${esc(titulo)}</h1><span class="rango">${esc(sub)} · ${esc(fmtCorto(dias[0]))} — ${esc(fmtCorto(dias[4]))} · ${esc(et)}</span></div>
+    ${extra || ''}
     <div class="wknav">
       <button class="wkb" data-wk="${tipo}:-1" title="Semana anterior">‹</button>
       ${off !== 0 ? `<button class="wkb hoy" data-wk="${tipo}:0">Hoy</button>` : ''}
@@ -904,13 +911,16 @@ function pintarAgenda(){
 /* ═══════════ CALENDARIO ═══════════ */
 function pintarCalendario(){
   const dias = semanaLV(offCal), hoy = hoyISO();
-  $('#cal').innerHTML = cabeceraSemana('Calendario', 'Resultados de la semana', dias, offCal, 'cal') +
+  const btn = `<button class="wkb todos ${todos?'on':''}" data-todos="1"
+      title="${todos?'Dejar solo tu cartera y tu watchlist':'Mostrar también las demás empresas relevantes'}">TODOS</button>`;
+  $('#cal').innerHTML = cabeceraSemana('Calendario', 'Resultados de la semana', dias, offCal, 'cal', btn) +
     (!workerUrl ? '<div class="err">El calendario sale del worker. Pulsa el engranaje de arriba y pega su URL.</div>' : '') +
     '<div class="semana">' + dias.map(d => {
-      const iso = aISO(d), res = resultados[iso];
+      const iso = aISO(d), bruto = resultados[iso];
+      const res = bruto == null ? null : (todos ? bruto : bruto.filter(x => posicionDe(x.ticker)));
       let cuerpo;
       if(res == null) cuerpo = '<div class="col-v"><span class="spin"></span></div>';
-      else if(!res.length) cuerpo = '<div class="col-v">Nada</div>';
+      else if(!res.length) cuerpo = `<div class="col-v">${todos ? 'Nada' : 'Nada tuyo'}</div>`;
       else{
         cuerpo = porSesiones(res);
         if(!cuerpo) cuerpo = '<div class="col-v">Nada tuyo</div>';
@@ -1390,6 +1400,12 @@ document.querySelector('.menu').addEventListener('click', e => {
 /* ═══════════ Eventos ═══════════ */
 function irAFicha(tk){ irA('fichas'); abrir(tk); }
 ['#cal','#macroV','#agenda'].forEach(s => $(s).addEventListener('click', e => {
+  if(e.target.closest('[data-todos]')){
+    todos = !todos;
+    try{ localStorage.setItem(LS_TODOS, todos ? '1' : '0'); }catch(x){}
+    pintarCalendario();
+    return;
+  }
   const w = e.target.closest('[data-wk]');
   if(w){
     const partes = w.dataset.wk.split(':'), tipo = partes[0], n = parseInt(partes[1], 10);
