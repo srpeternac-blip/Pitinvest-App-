@@ -530,7 +530,7 @@ function yahooDe(gf, tk){
 /* ═══════════ Estado ═══════════ */
 let fichas = [], historial = [], calendario = [], macro = [], pendientes = [], cartera = [], sectores = [], sel = null;
 let filtroEstado = 'todas', query = '', vista = 'agenda';
-let offCal = 0, offMacro = 0, calAjustado = false;
+let offCal = 0, offMacro = 0;
 let workerUrl = localStorage.getItem(LS_WORKER) || '';
 
 const COLS = ['TICKER','NOMBRE','SIMBOLO_GF','ESTADO','CARTERA','QUE_HACE','SECTOR','PRECIO','PER',
