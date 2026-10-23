@@ -405,6 +405,7 @@ const MAX_POR_SESION = 11;        // cuántas ajenas caben por sesión antes de 
 const LS = 'pitinvest_cache_v3';
 const LS_WORKER = 'momentum_worker_url';   // misma clave que PITrader App: comparten worker
 const LS_TODOS = 'pitinvest_todos';
+const LS_MIAS = 'pitinvest_mis_resultados_v1';
 
 const cacheBust = (b) => b + (b.includes('?') ? '&' : '?') + 't=' + Date.now();
 const urlDe = (tab) => cacheBust(`${PUB}?gid=${GID[tab]}&single=true&output=csv`);
@@ -506,6 +507,8 @@ function yahooDe(gf, tk){
 let fichas = [], historial = [], macroSheet = [], pendientes = [], cartera = [], sectores = [], sel = null;
 let resultados = {};              // ISO -> [{ticker, nombre, sesion, cap}] | null mientras carga
 let macroApi = {};                // ISO -> [{hora, evento, importancia}]
+let misFechas = {};               // TICKER suyo -> [ISO] de sus próximos resultados (Yahoo)
+let simbolos = {};                // TICKER -> símbolo de Yahoo resuelto
 let semanasPedidas = new Set();
 let filtroEstado = 'todas', query = '', vista = 'agenda';
 let offCal = 0, offMacro = 0;
@@ -552,7 +555,8 @@ function parseCartera(rows){
       const tk = limpiaTicker(r[c]);
       if(!tk || tk === etiqueta.toUpperCase() || vistos.has(tk)) continue;
       vistos.add(tk);
-      out.push({TICKER: tk, NOMBRE: String(r[c+1]).trim(), CUENTA: etiqueta.toUpperCase()});
+      // GF conserva el prefijo de bolsa original (tse:IVN) para poder ir a Yahoo
+      out.push({TICKER: tk, GF: String(r[c]).trim(), NOMBRE: String(r[c+1]).trim(), CUENTA: etiqueta.toUpperCase()});
     }
   }
   return out;
@@ -629,6 +633,7 @@ async function cargar(){
   }
   cargarSemana(0);
   cargarMacroSemana(0);
+  cargarResultadosMios();
 }
 function mensajeError(e){
   const acceso = e && (e.message === 'ACCESO' || /HTTP 4|HTTP 5|Failed|NetworkError/i.test(e.message || ''));
@@ -712,6 +717,78 @@ async function cargarSemana(off){
   }));
   if(vista === 'cal') pintarCalendario();
   pintarAgenda();
+}
+
+/* ═══════════ Resultados de las suyas (Yahoo, todas las bolsas) ═══════════
+   Nasdaq solo cubre lo cotizado en EE.UU., así que media cartera —París, Sídney,
+   Shenzhen— no sale ahí. Para las suyas se pregunta empresa por empresa a Yahoo,
+   que sí tiene todas las plazas. Se guarda medio día para no repetir 40 llamadas. */
+const SUF_PAIS = {AU:'.AX', FR:'.PA', ES:'.MC', DE:'.DE', IT:'.MI', NL:'.AS', BE:'.BR', PT:'.LS',
+  GB:'.L', CH:'.SW', JP:'.T', HK:'.HK', CA:'.TO', SE:'.ST', DK:'.CO', NO:'.OL', CN:'.SZ'};
+/* Convierte un ticker suyo al símbolo de Yahoo. Primero lo que ya sabemos
+   (el SIMBOLO_GF de la ficha, o el prefijo de bolsa del Sheet de cartera) y,
+   si no hay nada, se lo pregunta al buscador de Yahoo. */
+async function simboloYahoo(tk){
+  if(simbolos[tk] !== undefined) return simbolos[tk];
+  const f = fichaDe(tk), c = carteraDe(tk);
+  let sym = '';
+  if(f && has(f.SIMBOLO_GF)) sym = yahooDe(f.SIMBOLO_GF, tk);
+  else if(c && c.GF && c.GF.includes(':')) sym = yahooDe(c.GF, tk);
+  if(!sym){
+    try{
+      const j = await api('/search?q=' + encodeURIComponent(tk));
+      const q = ordenarCandidatos((j.quotes||[]).filter(x => x.symbol && x.quoteType === 'EQUITY'));
+      const exacta = q.find(x => x.symbol.toUpperCase().split('.')[0] === tk);
+      const elegida = exacta || q[0];
+      if(elegida){
+        sym = elegida.symbol.toUpperCase();
+        // Si Yahoo devuelve el ticker pelado pero la empresa no es de EE.UU., le falta el sufijo
+        if(!sym.includes('.') && elegida.exchange && SUF_PAIS[String(elegida.exchange).slice(0,2).toUpperCase()])
+          sym += SUF_PAIS[String(elegida.exchange).slice(0,2).toUpperCase()];
+      }
+    }catch(e){}
+  }
+  simbolos[tk] = sym || tk;
+  return simbolos[tk];
+}
+async function cargarResultadosMios(){
+  if(!workerUrl) return;
+  try{
+    const c = JSON.parse(localStorage.getItem(LS_MIAS) || 'null');
+    if(c && Date.now() - c.ts < 12*3600*1000 && c.datos){ misFechas = c.datos; pintarCalendario(); pintarAgenda(); return; }
+  }catch(e){}
+  const lista = [...new Set([...cartera.map(x => x.TICKER), ...fichas.map(x => x.TICKER.toUpperCase())])];
+  const datos = {};
+  await Promise.allSettled(lista.map(async tk => {
+    const sym = await simboloYahoo(tk);
+    if(!sym) return;
+    try{
+      const j = await api('/summary/' + encodeURIComponent(sym) + '?modules=calendarEvents');
+      const r = j && j.quoteSummary && j.quoteSummary.result && j.quoteSummary.result[0];
+      const ed = r && r.calendarEvents && r.calendarEvents.earnings && r.calendarEvents.earnings.earningsDate;
+      const fechas = (ed || []).map(x => rv(x)).filter(Boolean).map(s => aISO(new Date(s * 1000)));
+      if(fechas.length) datos[tk] = [...new Set(fechas)];
+    }catch(e){}
+  }));
+  misFechas = datos;
+  try{ localStorage.setItem(LS_MIAS, JSON.stringify({ts:Date.now(), datos})); }catch(e){}
+  pintarCalendario(); pintarAgenda();
+}
+/* Lo de Nasdaq más las suyas que Yahoo coloque ese día y Nasdaq no traiga */
+function resultadosDelDia(iso){
+  const base = resultados[iso];
+  if(base == null) return null;
+  const ya = new Set(base.map(x => x.ticker));
+  const extra = [];
+  for(const tk in misFechas){
+    if(ya.has(tk) || !misFechas[tk].includes(iso)) continue;
+    const c = carteraDe(tk), f = fichaDe(tk);
+    extra.push({ ticker: tk, nombre: (f && f.NOMBRE) || (c && c.NOMBRE) || '', sesion: 'UNK', cap: 0 });
+  }
+  if(!extra.length) return base;
+  const mias = base.filter(x => posicionDe(x.ticker));
+  const otras = base.filter(x => !posicionDe(x.ticker));
+  return [...mias, ...extra, ...otras];
 }
 
 /* ═══════════ Macro ═══════════ */
@@ -865,7 +942,7 @@ function cabeceraSemana(titulo, sub, dias, off, tipo, extra){
 /* ═══════════ AGENDA ═══════════ */
 function pintarAgenda(){
   const hoy = hoyISO(), hoyD = new Date();
-  const res = resultadosDe(hoy), mac = macroDe(hoy);
+  const res = resultadosDelDia(hoy) || [], mac = macroDe(hoy);
   const mias = res.filter(c => posicionDe(c.ticker));
   const otras = res.filter(c => !posicionDe(c.ticker)).slice(0, 12);
 
@@ -916,7 +993,7 @@ function pintarCalendario(){
   $('#cal').innerHTML = cabeceraSemana('Calendario', 'Resultados de la semana', dias, offCal, 'cal', btn) +
     (!workerUrl ? '<div class="err">El calendario sale del worker. Pulsa el engranaje de arriba y pega su URL.</div>' : '') +
     '<div class="semana">' + dias.map(d => {
-      const iso = aISO(d), bruto = resultados[iso];
+      const iso = aISO(d), bruto = resultadosDelDia(iso);
       const res = bruto == null ? null : (todos ? bruto : bruto.filter(x => posicionDe(x.ticker)));
       let cuerpo;
       if(res == null) cuerpo = '<div class="col-v"><span class="spin"></span></div>';
@@ -1370,7 +1447,7 @@ $('#btnSave').addEventListener('click', () => {
   localStorage.setItem(LS_WORKER, workerUrl);
   $('#modal').classList.remove('open');
   semanasPedidas.clear(); resultados = {}; macroApi = {};
-  cargarSemana(offCal); cargarMacroSemana(offMacro);
+  cargarSemana(offCal); cargarMacroSemana(offMacro); cargarResultadosMios();
 });
 $('#btnTest').addEventListener('click', async () => {
   const u = $('#inpWorker').value.trim().replace(/\/+$/,''), out = $('#testRes');
@@ -1438,7 +1515,11 @@ $('#aCands').addEventListener('click', e => {
   const b = e.target.closest('[data-sym]'); if(!b) return;
   $('#aCands').innerHTML = ''; aviso('',''); analizar(b.dataset.sym);
 });
-$('#btnRef').addEventListener('click', () => { semanasPedidas.clear(); resultados = {}; macroApi = {}; cargar(); });
+$('#btnRef').addEventListener('click', () => {
+  semanasPedidas.clear(); resultados = {}; macroApi = {}; misFechas = {}; simbolos = {};
+  try{ localStorage.removeItem(LS_MIAS); }catch(e){}
+  cargar();
+});
 window.addEventListener('hashchange', () => {
   const tk = decodeURIComponent((location.hash || '').replace('#','')).toUpperCase();
   if(tk) irAFicha(tk); else { sel = null; pintarLista(); }
