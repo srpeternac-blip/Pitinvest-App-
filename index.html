@@ -650,7 +650,6 @@ function pintarTodo(ts, deCache){
   const n = fichas.length;
   $('#hstat').innerHTML = '<b>' + n + ' empresa' + (n===1?'':'s') + '</b>' +
     (deCache ? 'copia local' : ts.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
-  if(!calAjustado){ calAjustado = true; offCal = primeraSemanaConResultados(); }
   pintarAgenda(); pintarCalendario(); pintarMacro(); pintarFiltros(); pintarLista();
   const hash = decodeURIComponent((location.hash || '').replace('#','')).toUpperCase();
   const quiere = sel || hash;
@@ -696,7 +695,7 @@ function posicionDe(tk){
 
 /* ═══════════ Resultados ═══════════ */
 /* Fila compacta, para las columnas de la semana */
-/* En el calendario solo interesa qué empresa presenta y qué día: sin precios ni niveles */
+/* En el calendario solo el día y la empresa: ni niveles, ni notas, ni precios */
 function filaCol(c){
   const p = posicionDe(c.TICKER);
   const f = p && p.ficha;
@@ -704,7 +703,7 @@ function filaCol(c){
   return `<${et} class="cr ${p?p.clase:''}" ${f?`data-ir="${esc(f.TICKER)}"`:''}>
     <span class="cr-t">${esc(c.TICKER)}</span>
     <span class="cr-n">${esc(c.NOMBRE || '')}</span>
-  </${et}>` + (has(c.NOTA) ? `<div class="cr-nota">${esc(c.NOTA)}</div>` : '');
+  </${et}>`;
 }
 /* Fila ancha, para la agenda */
 function filaResultado(c){
@@ -817,15 +816,6 @@ function pintarAgenda(){
     </div>`;
 }
 
-/* El calendario suele ir por delante: si en la semana en curso no presenta nadie,
-   se abre directamente en la primera semana que sí tenga resultados. */
-function primeraSemanaConResultados(){
-  for(let k = 0; k <= 8; k++){
-    if(semanaLV(k).some(d => resultadosDe(aISO(d)).length)) return k;
-  }
-  return 0;
-}
-
 /* ═══════════ CALENDARIO — semana en columnas, solo resultados ═══════════ */
 function pintarCalendario(){
   const dias = semanaLV(offCal), hoy = hoyISO();
@@ -841,7 +831,7 @@ function pintarCalendario(){
         </div>
         ${res.length
           ? bloqueSesion('Antes de apertura', bmo, true) + bloqueSesion('Tras el cierre', amc, true)
-          : '<div class="col-v">Nada</div>'}
+          : '<div class="col-v">Nada tuyo</div>'}
       </div>`;
     }).join('') + '</div>' +
     (total === 0 ? '<div class="card" style="margin-top:13px"><div class="vacio">Ninguna empresa anotada en esta semana. Mueve la semana con las flechas, o pide al chat de Resultados que rellene la pestaña CALENDARIO del Sheet.</div></div>' : '');
