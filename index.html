@@ -670,38 +670,47 @@ async function pedirCartera(){
   return '';
 }
 
-/* Las tres últimas columnas de la ficha (precio y ganancia) son fórmulas vivas:
-   GOOGLEFINANCE para el precio e IMPORTRANGE del SWING 2026 para la ganancia.
-   Google publica el CSV haciendo una foto del Sheet, y casi siempre la hace
-   antes de acabar de calcularlas: medido el 24/10, de ocho descargas seguidas
-   solo dos traían esas columnas y seis llegaban vacías. El resto de la ficha es
-   texto escrito a mano y nunca falla.
-   Así que se insiste hasta pillar una descarga buena y, si no hay suerte, se
-   conservan los últimos valores buenos en vez de dejar el hueco en blanco. */
+/* Las tres últimas columnas de la ficha no son texto escrito a mano, son
+   fórmulas, y Google publica el CSV haciendo una foto del Sheet sin acabar de
+   calcularlas. Medido el 24/10 con 24 descargas:
+     · PRECIO, que es GOOGLEFINANCE dentro del propio archivo de fichas, llega
+       siempre, 72 de 72 filas.
+     · PL_PCT y PL_IMP, que vienen por IMPORTRANGE del SWING 2026, no llegan
+       nunca: Google no evalúa los IMPORTRANGE al publicar y en el CSV sale
+       «Cargando...» o vacío. Antes colaba una de cada cuatro veces.
+   Mientras eso no se resuelva leyendo el SWING directamente, la app pide varias
+   veces, junta lo bueno de cada descarga y conserva los últimos valores buenos
+   en vez de dejar el hueco en blanco. El resto de la ficha es texto y no falla. */
 const VIVAS = ['PRECIO','PL_PCT','PL_IMP'];
-const traeVivos = (fs) => fs.some(f => has(f.PRECIO));
-let vivosConservados = false;   // true cuando el precio que se ve no es de ahora
-async function pedirFichas(intentos = 10){
-  let ultimo = [];
-  for(let i = 0; i < intentos; i++){
-    const fs = filasAObjetos(parseCSV(await pedir('FICHAS')));
-    if(fs.length) ultimo = fs;
-    if(traeVivos(fs)){ vivosConservados = false; return fs; }
-    await new Promise(r => setTimeout(r, 600));
-  }
-  return ultimo;
-}
-function conservaVivos(nuevas, viejas){
-  if(!nuevas.length || traeVivos(nuevas) || !viejas.length) return nuevas;
-  vivosConservados = true;
+const hayAlguno = (fs, c) => fs.some(f => has(f[c]));
+const faltaAlgo = (fs) => !fs.length || VIVAS.some(c => !hayAlguno(fs, c));
+let vivosConservados = false;   // true cuando algo de lo que se ve no es de ahora
+/* Rellena los huecos de las columnas vivas con lo que ya se tenía, columna a
+   columna: una descarga puede traer el precio y otra la ganancia. */
+function conservaVivos(nuevas, viejas, marcarComoViejo){
+  if(!nuevas.length || !viejas.length) return nuevas;
   const antes = new Map(viejas.map(f => [String(f.TICKER).toUpperCase(), f]));
   return nuevas.map(f => {
     const v = antes.get(String(f.TICKER).toUpperCase());
     if(!v) return f;
     const o = {...f};
-    VIVAS.forEach(c => { if(!has(o[c]) && has(v[c])) o[c] = v[c]; });
+    VIVAS.forEach(c => {
+      if(!has(o[c]) && has(v[c])){ o[c] = v[c]; if(marcarComoViejo) vivosConservados = true; }
+    });
     return o;
   });
+}
+/* Varias descargas de la misma carga: lo que falta en una suele venir en otra.
+   Juntarlas no es dato viejo, así que eso no se marca. */
+async function pedirFichas(intentos = 4){
+  let mejor = [];
+  for(let i = 0; i < intentos; i++){
+    const fs = filasAObjetos(parseCSV(await pedir('FICHAS')));
+    mejor = mejor.length ? conservaVivos(fs, mejor, false) : fs;
+    if(!faltaAlgo(mejor)) break;
+    if(i < intentos - 1) await new Promise(r => setTimeout(r, 700));
+  }
+  return mejor;
 }
 function leeCache(){
   try{ return JSON.parse(localStorage.getItem(LS) || 'null'); }catch(x){ return null; }
@@ -717,7 +726,8 @@ async function cargar(){
       pedirFichas(), pedirSuave('HISTORIAL'), pedirSuave('MACRO'),
       pedirSuave('PENDIENTES'), pedirCartera(), pedirSuave('SECTORES')
     ]);
-    fichas = conservaVivos(f, previas);
+    vivosConservados = false;
+    fichas = conservaVivos(f, previas, true);   // esto sí es dato de antes
     if(!fichas.length) throw new Error('VACIO');
     historial = aObjetos(parseCSV(h), ['FECHA','TICKER','AGENTE','NOTA']).filter(x => has(x.NOTA));
     macroSheet = aObjetos(parseCSV(m), ['FECHA','HORA','EVENTO','IMPORTANCIA','NOTA']).filter(x => has(x.EVENTO));
