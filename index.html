@@ -196,6 +196,31 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .q-price{font-family:var(--mono);font-size:30px;font-weight:600;line-height:1}
 .q-per{font-family:var(--mono);font-size:14px;color:var(--media)}
 .q-per b{color:var(--tinta);font-weight:600}
+.dtop{display:flex;align-items:center;flex-wrap:wrap;gap:14px}
+.pl{font-family:var(--mono);font-size:21px;font-weight:700;letter-spacing:-.01em}
+.pl em{font-style:normal;font-size:15px;font-weight:600;opacity:.8}
+.pl.pos{color:var(--verde)} .pl.neg{color:var(--alarma)}
+.dtop .btn{margin-left:auto;height:38px;font-size:13.5px;letter-spacing:.04em}
+.pchip{font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;
+  text-transform:uppercase;letter-spacing:.07em;border:1px solid var(--borde);color:var(--media);background:var(--banda)}
+.p-construir{color:var(--watch);border-color:rgba(111,180,255,.5);background:rgba(111,180,255,.12)}
+.p-ampliar{color:var(--verde);border-color:rgba(74,222,128,.5);background:rgba(74,222,128,.12)}
+.p-mantener{color:var(--pos);border-color:rgba(247,184,60,.5);background:rgba(247,184,60,.12)}
+.p-reducir{color:var(--alarma);border-color:rgba(255,95,77,.5);background:rgba(255,95,77,.12)}
+.cifras{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:11px}
+.cifra{display:flex;flex-direction:column;gap:3px;background:var(--banda);border:1px solid var(--borde);
+  border-radius:9px;padding:9px 14px;font-family:var(--mono);font-size:17px;font-weight:600}
+.cifra b{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--tenue)}
+.vigilar{margin-top:11px;border-left:3px solid var(--pos);background:rgba(247,184,60,.07);
+  border-radius:0 9px 9px 0;padding:11px 14px;font-size:14.5px;line-height:1.6;color:var(--media)}
+.vigilar b{display:block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--pos);margin-bottom:5px}
+.tesis{border-left:3px solid var(--borde);padding:2px 0 2px 14px;margin-bottom:13px}
+.tesis.ia{border-left-color:var(--malva)}
+.tesis>b{display:block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--tenue);margin-bottom:5px}
+.tesis.ia>b{color:var(--malva)}
+.niveles{margin-top:13px}
 .verd{font-family:var(--disp);font-size:13px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:5px 12px;border-radius:7px}
 .v-barata{background:rgba(74,222,128,.16);color:var(--verde);border:1px solid rgba(74,222,128,.4)}
 .v-cara{background:rgba(255,95,77,.14);color:#ff9e92;border:1px solid rgba(255,95,77,.4)}
@@ -446,7 +471,9 @@ function num(s){
     if(v.lastIndexOf(',') > v.lastIndexOf('.')) v = v.replace(/\./g,'').replace(',','.');
     else v = v.replace(/,/g,'');
   } else if(c){
-    v = /^\d{1,3}(,\d{3})+$/.test(v) ? v.replace(/,/g,'') : v.replace(',','.');
+    // El Sheet está en español: la coma es decimal. Solo son miles cuando hay
+    // más de un grupo (1,234,567); si no, "0,132" se leería como 132.
+    v = /^\d{1,3}(,\d{3}){2,}$/.test(v) ? v.replace(/,/g,'') : v.replace(',','.');
   } else if(d){
     if(/^\d{1,3}(\.\d{3})+$/.test(v)) v = v.replace(/\./g,'');
   }
@@ -516,10 +543,10 @@ let workerUrl = localStorage.getItem(LS_WORKER) || '';
 /* Botón TODOS del calendario: apagado = solo cartera y watchlist. Se recuerda. */
 let todos = localStorage.getItem(LS_TODOS) === '1';
 
-const COLS = ['TICKER','NOMBRE','SIMBOLO_GF','ESTADO','CARTERA','QUE_HACE','SECTOR','PRECIO','PER',
-  'DITO_CRECE','DITO_VALORACION','DITO_DEUDA','DITO_RETRIBUCION','DITO_VEREDICTO',
-  'ENTRADA_1','ENTRADA_2','SALIDA','TESIS_PITI','TESIS_IA','ULTIMOS_RESULTADOS',
-  'PROXIMOS_RESULTADOS','QUE_VIGILAR','ACTUALIZADO'];
+const COLS = ['TICKER','NOMBRE','SIMBOLO_GF','ESTADO','CARTERA','DESCRIPCION','SECTOR','SUBSECTOR',
+  'POSICION','RES_BPA','RES_VENTAS','RES_COMENTARIO','PROX_RESULTADOS','QUE_VIGILAR',
+  'TESIS_PITI','TESIS_IA','PLAN_ACCION','ENTRADA_1','ENTRADA_2','SALIDA','RESUMEN','ACTUALIZADO',
+  'PRECIO','PL_PCT','PL_IMP'];   // las tres últimas son fórmula: nadie las escribe a mano
 
 function aObjetos(rows, cols){
   if(!rows.length) return [];
@@ -658,12 +685,15 @@ const sectorDe = (s) => sectores.find(x => x.SECTOR_YAHOO.toLowerCase() === Stri
 function posicionDe(tk){
   const f = fichaDe(tk), c = carteraDe(tk);
   if(!f && !c) return null;
-  const est = ((f && f.ESTADO) || 'cartera').toLowerCase();
-  if(est === 'descartada' && !c) return null;
+  const est = ((f && f.ESTADO) || '').toLowerCase();
+  const enWatch = c && c.CUENTA === 'WATCHLIST';     // su Sheet ya trae bloque watchlist
+  if(est === 'descartada') return null;
   return {
     ficha: f,
     cuenta: (c && c.CUENTA) || (f && f.CARTERA) || '',
-    clase: (est === 'watchlist' && !c) ? 'watchlist' : 'cartera',
+    // Si está en un bloque de cartera real, es cartera. Si solo está en watchlist
+    // (o la ficha lo dice), es watchlist.
+    clase: (c && !enWatch) ? 'cartera' : (enWatch || est === 'watchlist') ? 'watchlist' : 'cartera',
     precio: f ? num(f.PRECIO) : null,
     entrada: f ? num(f.ENTRADA_1) : null
   };
@@ -1056,34 +1086,18 @@ function pintarLista(){
 }
 
 /* ═══════════ Ficha ═══════════ */
-const VERD = (t) => {
-  const s = (t || '').toLowerCase();
-  if(!s) return 'v-nd';
-  if(/barat|infravalor/.test(s)) return 'v-barata';
-  if(/\bcara\b|\bcaro\b|sobrevalor/.test(s)) return 'v-cara';
-  if(/en precio|precio justo|razonable/.test(s)) return 'v-media';
-  return 'v-nd';
-};
-/* Señal del pilar: solo cuando el texto arranca con una marca inequívoca */
-function senal(txt){
-  const s = (txt || '').trim().toLowerCase();
-  if(!s) return {cls:'', mark:''};
-  if(/^(sí|si)\b/.test(s) && !/^si\s+(se|cae|baja)/.test(s)) return {cls:'ok', mark:'cumple'};
-  if(/^no\b/.test(s)) return {cls:'ko', mark:'no cumple'};
-  if(/^(sin deuda|baja|muy baja|nula)\b/.test(s)) return {cls:'ok', mark:'bien'};
-  if(/^(alta|muy alta|elevada)\b/.test(s)) return {cls:'ko', mark:'alto'};
-  if(/^barat/.test(s)) return {cls:'ok', mark:'barata'};
-  if(/^car[ao]\b/.test(s)) return {cls:'ko', mark:'cara'};
-  if(/^(dividendo|recompra)/.test(s)) return {cls:'ok', mark:'retribuye'};
-  if(/^(crece|pendiente|ha caído|ha caido)/.test(s)) return {cls:'mid', mark:''};
-  return {cls:'', mark:''};
-}
-function pilar(label, txt){
-  const s = senal(txt);
-  return `<div class="pilar ${s.cls}">
-    <div class="pt"><span>${esc(label)}</span>${s.mark?`<span class="pm">${esc(s.mark)}</span>`:''}</div>
-    ${has(txt) ? `<div class="txt">${esc(txt)}</div>` : '<div class="nd">Sin valorar todavía.</div>'}
-  </div>`;
+/* Qué quiere hacer con la posición. Lista abierta: si escribe otra cosa, se
+   muestra tal cual sin color en vez de romperse. */
+const POS = [
+  [/construir|constru/i, 'Construir', 'p-construir'],
+  [/ampliar|ampli/i,     'Ampliar',   'p-ampliar'],
+  [/mantener|manten/i,   'Mantener',  'p-mantener'],
+  [/reducir|reduc|eliminar|salir/i, 'Reducir', 'p-reducir']
+];
+function chipPosicion(txt){
+  if(!has(txt)) return '';
+  const m = POS.find(([re]) => re.test(txt));
+  return `<span class="pchip ${m ? m[2] : ''}">${esc(m ? m[1] : txt)}</span>`;
 }
 function nivel(label, valor, precio, divisa, tipo){
   const v = num(valor);
@@ -1109,62 +1123,79 @@ function abrir(tk, mantenerScroll){
 
   const est = (f.ESTADO || '').toLowerCase();
   const div = divisaDe(f.SIMBOLO_GF);
-  const precio = num(f.PRECIO), per = num(f.PER);
+  const precio = num(f.PRECIO);
+  const plPct = num(f.PL_PCT), plImp = num(f.PL_IMP);
   const hist = historial.filter(h => (h.TICKER || '').toUpperCase() === tk)
-    .sort((a,b) => String(b.FECHA).localeCompare(String(a.FECHA)));
+    .sort((a,b) => String(b.FECHA).localeCompare(String(a.FECHA)));   // lo más reciente arriba
+
   const niveles = [
     nivel('Entrada 1', f.ENTRADA_1, precio, div, 'entrada'),
     nivel('Entrada 2', f.ENTRADA_2, precio, div, 'entrada'),
     nivel('Salida',    f.SALIDA,    precio, div, 'salida')
   ].join('');
 
+  // Ganancia: solo si la tiene en cartera y el Sheet la ha traído del SWING 2026
+  const pl = plPct == null ? '' : `<span class="pl ${plPct >= 0 ? 'pos' : 'neg'}">${pctSig(plPct)}${
+      plImp != null ? ` <em>(${plImp > 0 ? '+' : ''}${fmtNum(plImp, 0)}${esc(div || '$')})</em>` : ''}</span>`;
+
+  const bloqueRes = (has(f.RES_BPA) || has(f.RES_VENTAS) || has(f.RES_COMENTARIO))
+    ? `<div class="cifras">
+         ${has(f.RES_BPA) ? `<span class="cifra"><b>BPA</b>${esc(f.RES_BPA)}</span>` : ''}
+         ${has(f.RES_VENTAS) ? `<span class="cifra"><b>Ventas</b>${esc(f.RES_VENTAS)}</span>` : ''}
+       </div>
+       ${has(f.RES_COMENTARIO) ? `<div class="txt dim">${esc(f.RES_COMENTARIO)}</div>` : ''}`
+    : '<div class="nd">Sin resultados anotados.</div>';
+
   $('#detail').innerHTML = `
     <div class="espectro"></div>
     <div class="dhead">
-      <div class="dname">${esc(f.NOMBRE || f.TICKER)}<span class="dtick">${esc(f.TICKER)}</span></div>
+      <div class="dtop">
+        <div class="dname">${esc(f.NOMBRE || f.TICKER)}<span class="dtick">${esc(f.TICKER)}</span></div>
+        ${pl}
+        <button class="btn" data-val="${esc(yahooDe(f.SIMBOLO_GF, f.TICKER))}">Analizar</button>
+      </div>
       <div class="dchips">
         ${has(f.ESTADO) ? `<span class="chip est-${esc(est)}">${esc(f.ESTADO)}</span>` : ''}
         ${has(f.CARTERA) ? `<span class="chip">${esc(f.CARTERA)}</span>` : ''}
         ${has(f.SECTOR) ? `<span class="chip">${esc(f.SECTOR)}</span>` : ''}
-      </div>
-      <div class="quote">
-        <span class="q-price">${precio!=null ? fmtNum(precio, precio>=100?0:2) + div : '—'}</span>
-        <span class="q-per">PER <b>${per!=null ? fmtNum(per,1) + 'x' : '—'}</b></span>
-        <span class="verd ${VERD(f.DITO_VEREDICTO)}">${has(f.DITO_VEREDICTO) ? esc(f.DITO_VEREDICTO) : 'Sin veredicto'}</span>
-        <button class="btn-mini" data-val="${esc(yahooDe(f.SIMBOLO_GF, f.TICKER))}" style="margin-left:auto">◎ Valoración en vivo</button>
+        ${has(f.SUBSECTOR) ? `<span class="chip">${esc(f.SUBSECTOR)}</span>` : ''}
+        ${chipPosicion(f.POSICION)}
       </div>
     </div>
 
     <div class="tabs">
-      <button class="tab on" data-pane="val">Valoración</button>
-      <button class="tab" data-pane="res">Resumen</button>
+      <button class="tab on" data-pane="gen">General</button>
+      <button class="tab" data-pane="hist">Historial</button>
     </div>
 
-    <div class="pane" id="pane-val">
-      <h4 class="sec">Criba Dito</h4>
-      ${pilar('Gana dinero y crece', f.DITO_CRECE)}
-      ${pilar('Valoración', f.DITO_VALORACION)}
-      ${pilar('Deuda', f.DITO_DEUDA)}
-      ${pilar('Retribución al accionista', f.DITO_RETRIBUCION)}
-      <h4 class="sec">Veredicto</h4>
-      ${has(f.DITO_VEREDICTO) ? `<div class="txt">${esc(f.DITO_VEREDICTO)}</div>` : '<div class="nd">Sin veredicto todavía.</div>'}
+    <div class="pane" id="pane-gen">
+      <h4 class="sec">Descripción</h4>
+      ${has(f.DESCRIPCION) ? `<div class="txt">${esc(f.DESCRIPCION)}</div>` : '<div class="nd">Sin descripción.</div>'}
+
+      <h4 class="sec">Últimos resultados</h4>
+      ${bloqueRes}
+
+      <h4 class="sec">Próximos resultados</h4>
+      ${has(f.PROX_RESULTADOS) ? `<div class="txt">${esc(f.PROX_RESULTADOS)}</div>` : '<div class="nd">Sin fecha.</div>'}
+      ${has(f.QUE_VIGILAR) ? `<div class="vigilar"><b>Qué vigilar</b>${esc(f.QUE_VIGILAR)}</div>` : ''}
+
+      <h4 class="sec">Tesis</h4>
+      ${has(f.TESIS_PITI) ? `<div class="tesis"><b>La tuya</b><div class="txt">${esc(f.TESIS_PITI)}</div></div>` : ''}
+      ${has(f.TESIS_IA) ? `<div class="tesis ia"><b>La de la IA</b><div class="txt dim">${esc(f.TESIS_IA)}</div></div>` : ''}
+      ${!has(f.TESIS_PITI) && !has(f.TESIS_IA) ? '<div class="nd">Sin tesis escrita.</div>' : ''}
+
+      <h4 class="sec">Plan de acción</h4>
+      ${has(f.PLAN_ACCION) ? `<div class="txt">${esc(f.PLAN_ACCION)}</div>` : '<div class="nd">Sin plan.</div>'}
+      ${niveles ? `<div class="niveles">${niveles}</div>` : ''}
+      <div class="foot">Actualizada: ${has(f.ACTUALIZADO) ? esc(f.ACTUALIZADO) : '—'}</div>
     </div>
 
-    <div class="pane" id="pane-res" hidden>
-      ${bloque('Qué hace', f.QUE_HACE)}
-      <h4 class="sec">Niveles</h4>
-      ${niveles || '<div class="nd">Sin niveles definidos.</div>'}
-      ${bloque('Tesis de Piti', f.TESIS_PITI)}
-      ${bloque('Tesis de la IA', f.TESIS_IA, true)}
-      ${bloque('Últimos resultados', f.ULTIMOS_RESULTADOS)}
-      ${bloque('Próximos resultados', f.PROXIMOS_RESULTADOS)}
-      ${bloque('Qué vigilar', f.QUE_VIGILAR)}
-      <h4 class="sec">Historial</h4>
+    <div class="pane" id="pane-hist" hidden>
       ${hist.length ? hist.map(h => `<div class="hrow">
           <div class="hmeta"><span class="hdate">${esc(h.FECHA)}</span>${has(h.AGENTE)?`<span class="hag">${esc(h.AGENTE)}</span>`:''}</div>
           <div class="hnota">${esc(h.NOTA)}</div>
-        </div>`).join('') : '<div class="nd">Sin notas todavía.</div>'}
-      <div class="foot">Ficha actualizada: ${has(f.ACTUALIZADO) ? esc(f.ACTUALIZADO) : '—'}</div>
+        </div>`).join('') : '<div class="nd">Sin comentarios todavía.</div>'}
+      ${has(f.RESUMEN) ? `<h4 class="sec">Resumen</h4><div class="txt">${esc(f.RESUMEN)}</div>` : ''}
     </div>`;
   if(!mantenerScroll) window.scrollTo(0,0);
 }
@@ -1500,8 +1531,8 @@ $('#detail').addEventListener('click', e => {
   if(v){ analizar(v.dataset.val); return; }
   const t = e.target.closest('[data-pane]'); if(!t) return;
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
-  $('#pane-val').hidden = t.dataset.pane !== 'val';
-  $('#pane-res').hidden = t.dataset.pane !== 'res';
+  $('#pane-gen').hidden = t.dataset.pane !== 'gen';
+  $('#pane-hist').hidden = t.dataset.pane !== 'hist';
 });
 $('#fEstado').addEventListener('click', e => {
   const b = e.target.closest('[data-est]'); if(!b) return;
