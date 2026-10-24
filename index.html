@@ -230,10 +230,10 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .resline .gion{color:var(--tenue);margin:0 7px;font-weight:400}
 /* Un porcentaje que llegó sin el signo de % : puede estar mal en el Sheet */
 .dudoso{color:var(--pos);border-bottom:1px dotted var(--pos);cursor:help}
-/* Fecha de resultados sacada del calendario, no del anuncio de la compañía */
-.sinconf{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.05em;
-  text-transform:uppercase;color:var(--pos);border:1px solid rgba(247,184,60,.45);
-  border-radius:5px;padding:2px 6px;margin-left:7px;white-space:nowrap;cursor:help}
+/* La fecha del Sheet y la del calendario no coinciden: hay que mirarlo */
+.choque{margin-top:6px;font-size:13px;line-height:1.5;color:#ffb9b1;
+  background:rgba(255,95,77,.1);border:1px solid rgba(255,95,77,.35);
+  border-radius:9px;padding:8px 11px}
 .pnivel{font-family:var(--mono);font-size:13px;color:var(--media);margin-left:9px}
 .cifras{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:11px}
 .cifra{display:flex;flex-direction:column;gap:3px;background:var(--banda);border:1px solid var(--borde);
@@ -1272,13 +1272,11 @@ function chipPosicion(f){
 const bloque = (label, txt, dim) => `<h4 class="sec">${esc(label)}</h4>` +
   (has(txt) ? `<div class="txt${dim?' dim':''}">${esc(txt)}</div>` : '<div class="nd">Sin datos.</div>');
 
-/* La fecha del próximo trimestre. Si Resultados la ha escrito en el Sheet manda
-   esa, porque la ha verificado contra la compañía. Si no, se usa la que la app
-   ya tiene del calendario y se marca «sin confirmar»: un calendario genérico no
-   es la fuente de la compañía, y en europeas que publican tras su cierre la
-   reacción es al día siguiente. */
-function proxResultados(f){
-  if(has(f.PROX_RESULTADOS)) return {txt: f.PROX_RESULTADOS, confirmada: true};
+/* La fecha del próximo trimestre. Si está escrita en el Sheet, se respeta: la
+   ha puesto un agente. Si no está, se pone la que la app ya tiene del
+   calendario. Y si está pero no coincide con el calendario, se avisa: uno de
+   los dos está mal y hay que mirarlo. */
+function fechaDelCalendario(f){
   const tk = String(f.TICKER || '').toUpperCase(), hoy = hoyISO();
   const cand = new Set(misFechas[tk] || []);
   Object.keys(resultados).forEach(iso => {
@@ -1286,8 +1284,44 @@ function proxResultados(f){
     if(Array.isArray(lista) && lista.some(x => String(x.ticker || '').toUpperCase() === tk)) cand.add(iso);
   });
   const futuras = [...cand].filter(iso => iso && iso >= hoy).sort();
-  if(!futuras.length) return null;
-  return {txt: fmtLargo(fechaDe(futuras[0])), confirmada: false};
+  return futuras[0] || null;
+}
+const ABR = MESES.map(n => n.slice(0,3));
+/* Del texto libre del Sheet se saca lo que haya: a veces día, mes y año, a
+   veces solo mes y año («febrero 2027»). Luego se compara solo con lo que haya,
+   para no dar un aviso falso por un dato que nadie escribió. */
+function fechaDeTexto(t){
+  const s = String(t).toLowerCase();
+  const iso = s.match(/(20\d{2})-(\d{2})-(\d{2})/);
+  if(iso) return {a:+iso[1], m:+iso[2], d:+iso[3]};
+  /* Si aparece más de un mes, o más de un año, el texto es ambiguo («Q4 2026,
+     finales de enero 2027») y no se compara ese trozo: antes no avisar que dar
+     un aviso falso. */
+  const largos = MESES.map((n,i) => [n, i+1]).filter(([n]) => s.includes(n)).map(x => x[1]);
+  const cortos = (s.match(/\b(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b/g) || []).map(x => ABR.indexOf(x) + 1);
+  const meses = [...new Set([...largos, ...cortos])];
+  if(meses.length !== 1) return null;
+  const anios = [...new Set((s.match(/\b20\d{2}\b/g) || []).map(Number))];
+  const dias  = [...new Set((s.match(/\b([1-9]|[12]\d|3[01])\b(?!\d)/g) || []).map(Number))];
+  return {a: anios.length === 1 ? anios[0] : null, m: meses[0], d: dias.length === 1 ? dias[0] : null};
+}
+function cuadraFecha(txt, iso){
+  const a = fechaDeTexto(txt);
+  if(!a) return true;                       // si no se puede leer, no se avisa
+  const b = {a:+iso.slice(0,4), m:+iso.slice(5,7), d:+iso.slice(8,10)};
+  if(a.a && a.a !== b.a) return false;
+  if(a.m !== b.m) return false;
+  if(a.d && a.d !== b.d) return false;
+  return true;
+}
+function proxResultados(f){
+  const delSheet = has(f.PROX_RESULTADOS) ? String(f.PROX_RESULTADOS).trim() : '';
+  const iso = fechaDelCalendario(f);
+  if(!delSheet) return iso ? {txt: fmtLargo(fechaDe(iso)), choque: ''} : null;
+  const choque = (iso && !cuadraFecha(delSheet, iso))
+    ? 'El calendario dice ' + fmtLargo(fechaDe(iso)) + '. No coincide: compruébalo.'
+    : '';
+  return {txt: delSheet, choque};
 }
 
 /* El panel de la derecha. Se abre y se cierra con el mismo botón Fundamental. */
@@ -1366,16 +1400,16 @@ function abrir(tk, mantenerScroll){
     : pend('decidir');
   const prox = proxResultados(f);
   const bloqueProx = prox
-    ? `<div class="txt">${esc(prox.txt)}${prox.confirmada ? ''
-        : ' <span class="sinconf" title="Fecha sacada del calendario de resultados, no del anuncio de la compañía. Cuando Resultados la verifique y la escriba en el Sheet, saldrá limpia.">sin confirmar</span>'}</div>`
+    ? `<div class="txt">${esc(prox.txt)}</div>` +
+      (prox.choque ? `<div class="choque">${esc(prox.choque)}</div>` : '')
     : pend('registrar');
 
   const comunes = [
     fila('Tesis', texto(f.TESIS_PITI, 'escribir')),
     fila('Tesis de la IA', texto(f.TESIS_IA, 'analizar')),
-    fila('Qué vigilar', texto(f.QUE_VIGILAR, 'analizar')),
     fila('Resultados', bloqueRes),
-    fila('Próximos', bloqueProx)
+    fila('Próximos', bloqueProx +
+      (has(f.QUE_VIGILAR) ? `<div class="vigilar"><b>Qué vigilar</b>${esc(f.QUE_VIGILAR)}</div>` : ''))
   ];
   const filasGen = [
     fila('Descripción', texto(f.DESCRIPCION, 'describir')),
@@ -1668,7 +1702,10 @@ function renderA(){
   const nDeuda = c.cobertura != null ? 9 : 8;
   const sinDatos = c.perFwd==null && c.evEbitda==null && c.cap==null && !c.revA && !c.revQ.length;
 
-  $(AOUT).innerHTML = `
+  /* En el panel de la ficha no se repiten nombre, ticker, sector ni precio: ya
+     están a la izquierda. Solo los datos. En la pantalla Analizar sí van, que
+     ahí no hay ficha al lado que diga de qué empresa se habla. */
+  const cabecera = enPanel() ? '' : `
     <div class="dhead" style="margin-top:20px">
       <div class="dname">${esc(c.nombre)}<span class="dtick">${esc(t)}</span></div>
       <div class="dchips">
@@ -1680,16 +1717,19 @@ function renderA(){
         ${c.chg != null ? `<span class="q-per" style="color:${c.chg>=0?'var(--verde)':'var(--alarma)'}">${pctSig(c.chg)}</span>` : ''}
       </div>
       <div class="desc"></div>
-    </div>
+    </div>`;
+
+  $(AOUT).innerHTML = cabecera + `
     ${sinDatos ? '<div class="err">Este listado apenas publica fundamentales: suele ser una cotización secundaria. Busca el listado principal.</div>' : ''}
-    <div class="pane" style="border-radius:14px;margin-top:16px">
+    <div class="pane" style="border-radius:14px;margin-top:${enPanel() ? '0' : '16px'}">
       <h4 class="sec">Gana dinero y crece</h4>${filas.slice(0,3).join('')}
       <h4 class="sec">Múltiplos y su mediana histórica</h4>${filas.slice(3,6).join('')}
       <h4 class="sec">Deuda</h4>${filas.slice(6,nDeuda).join('')}
       <h4 class="sec">Retribución al accionista</h4>${filas.slice(nDeuda).join('')}
-      <div class="foot">Datos de Yahoo Finance vía tu worker. Dato no verificado contra la fuente original: para una tesis, confirma las cifras en el informe de la compañía.</div>
+      ${enPanel() ? '' : '<div class="foot">Datos de Yahoo Finance vía tu worker. Dato no verificado contra la fuente original: para una tesis, confirma las cifras en el informe de la compañía.</div>'}
     </div>`;
-  descES($(AOUT).querySelector('.desc'), c.resumen);
+  const elDesc = $(AOUT).querySelector('.desc');
+  if(elDesc) descES(elDesc, c.resumen);
   if(!enPanel()) $(AOUT).scrollIntoView({behavior:'smooth', block:'start'});
 }
 
