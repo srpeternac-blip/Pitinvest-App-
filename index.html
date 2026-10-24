@@ -365,6 +365,8 @@ h4.sec:first-child{margin-top:0}
       <button class="nv on" data-view="agenda"><span class="mk"></span>Agenda del día</button>
       <button class="nv" data-view="cal"><span class="mk"></span>Calendario</button>
       <button class="nv" data-view="macro"><span class="mk"></span>Macro</button>
+      <button class="nv" data-view="analisis"><span class="mk"></span>Valoración</button>
+      <button class="nv" data-view="tareas"><span class="mk"></span>Tareas pendientes</button>
       <div class="nv-sep"></div>
       <button class="nv" data-view="fichas"><span class="mk"></span>Fichas</button>
     </div>
@@ -380,16 +382,13 @@ h4.sec:first-child{margin-top:0}
       </div>
       <div class="list" id="list"><div class="lempty"><span class="spin"></span></div></div>
     </div>
-
-    <div class="menu-nav" style="padding-top:9px;padding-bottom:13px">
-      <button class="nv" data-view="analisis"><span class="mk"></span>Valoración</button>
-    </div>
   </nav>
 
   <div>
     <section class="view on" id="view-agenda"><div class="wrap" id="agenda"></div></section>
     <section class="view" id="view-cal"><div class="wrap ancho" id="cal"></div></section>
     <section class="view" id="view-macro"><div class="wrap" id="macroV"></div></section>
+    <section class="view" id="view-tareas"><div class="wrap" id="tareas"></div></section>
 
     <section class="view" id="view-fichas">
       <main class="detail" id="detail">
@@ -687,7 +686,7 @@ function mensajeError(e){
 function pintarTodo(ts, deCache){
   $('#hstat').innerHTML = '<b>' + fichas.length + ' fichas · ' + cartera.length + ' posiciones</b>' +
     (deCache ? 'copia local' : ts.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
-  pintarAgenda(); pintarCalendario(); pintarMacro(); pintarFiltros(); pintarLista();
+  pintarAgenda(); pintarCalendario(); pintarMacro(); pintarTareas(); pintarFiltros(); pintarLista();
   const hash = decodeURIComponent((location.hash || '').replace('#','')).toUpperCase();
   const quiere = sel || hash;
   if(quiere && fichas.some(f => f.TICKER.toUpperCase() === quiere)) abrir(quiere, true);
@@ -1044,6 +1043,51 @@ function pintarAgenda(){
     </div>`;
 }
 
+/* ═══════════ TAREAS PENDIENTES ═══════════
+   La pestaña PENDIENTES del Sheet, entera. La agenda solo muestra lo que vence
+   en los próximos días; aquí está todo, también lo que no tiene fecha. */
+function filaTarea(p, cerrada){
+  const urge = !cerrada && p.dias != null && p.dias <= 0;
+  const pronto = !cerrada && p.dias != null && p.dias > 0 && p.dias <= 2;
+  const et = cerrada ? 'hecho'
+    : p.dias == null ? 'sin fecha'
+    : p.dias < 0 ? 'vencido'
+    : p.dias === 0 ? 'hoy'
+    : fmtCorto(fechaDe(p.FECHA_LIMITE));
+  return `<div class="pd ${urge ? 'urge' : ''}">
+    <span class="pd-f ${urge ? 'urge' : (pronto ? 'pronto' : '')}">${esc(et)}</span>
+    <span class="pd-b"><span class="pd-a">${esc(p.ASUNTO)}</span>
+      ${has(p.DETALLE) ? `<span class="pd-d">${esc(p.DETALLE)}</span>` : ''}</span>
+  </div>`;
+}
+function pintarTareas(){
+  const conDias = pendientes.map(p => ({...p, dias: diasHasta(p.FECHA_LIMITE)}));
+  const cerrada = (p) => (p.ESTADO || 'abierto').toLowerCase() === 'cerrado';
+  const orden = (a,b) => (a.dias == null) - (b.dias == null) || (a.dias||0) - (b.dias||0);
+  const abiertas = conDias.filter(p => !cerrada(p)).sort(orden);
+  const hechas = conDias.filter(cerrada).sort(orden);
+  const vencidas = abiertas.filter(p => p.dias != null && p.dias <= 0).length;
+
+  $('#tareas').innerHTML = `
+    <div class="espectro"></div>
+    <div class="scr-h"><div><h1>Tareas pendientes</h1>
+      <span class="rango">Decisiones abiertas${vencidas ? ` · ${vencidas} vencida${vencidas===1?'':'s'}` : ''}</span></div></div>
+
+    <div class="card">
+      <div class="card-cab">Abiertas ${abiertas.length?`<span class="cnt">${abiertas.length}</span>`:''}</div>
+      <div class="card-cuerpo">${abiertas.length
+        ? abiertas.map(p => filaTarea(p, false)).join('')
+        : (pendientes.length
+            ? '<div class="vacio">Nada abierto.</div>'
+            : '<div class="vacio">Pendiente de registrar: la pestaña PENDIENTES del Sheet está vacía.</div>')}</div>
+    </div>
+
+    ${hechas.length ? `<div class="card">
+      <div class="card-cab">Cerradas <span class="cnt">${hechas.length}</span></div>
+      <div class="card-cuerpo">${hechas.map(p => filaTarea(p, true)).join('')}</div>
+    </div>` : ''}`;
+}
+
 /* ═══════════ CALENDARIO ═══════════ */
 function pintarCalendario(){
   const dias = semanaLV(offCal), hoy = hoyISO();
@@ -1086,15 +1130,31 @@ function pintarMacro(){
 }
 
 /* ═══════════ Fichas: filtros y lista ═══════════ */
-const ESTADOS = [['todas','Todas'],['cartera','Cartera'],['watchlist','Watchlist']];
+/* Los filtros son las carteras del SWING 2026, más la watchlist. Swing, Core,
+   Opciones y QF solo enseñan lo que tiene comprado: una empresa en watchlist
+   lleva en CARTERA su cartera de destino, y no debe colarse ahí. Una posición
+   en dos carteras ("QF y OPCIONES") aparece en las dos. */
+const ESTADOS = [
+  ['todas',     'Todas',     () => true],
+  ['swing',     'Swing',     f => enCartera(f, 'SWING')],
+  ['core',      'Core',      f => enCartera(f, 'CORE')],
+  ['opciones',  'Opciones',  f => enCartera(f, 'OPCIONES')],
+  ['qf',        'QF',        f => enCartera(f, 'QF')],
+  ['watchlist', 'Watchlist', f => (f.ESTADO || '').toLowerCase() === 'watchlist']
+];
+function enCartera(f, clave){
+  return (f.ESTADO || '').toLowerCase() === 'cartera'
+      && (f.CARTERA || '').toUpperCase().includes(clave);
+}
 function pintarFiltros(){
   $('#fEstado').innerHTML = ESTADOS.map(([v,l]) =>
     `<button class="fchip ${filtroEstado===v?'on':''}" data-est="${v}">${l}</button>`).join('');
 }
 function visibles(){
   const q = query.trim().toLowerCase();
+  const pasa = (ESTADOS.find(([v]) => v === filtroEstado) || ESTADOS[0])[2];
   return fichas.filter(f => {
-    if(filtroEstado !== 'todas' && (f.ESTADO || '').toLowerCase() !== filtroEstado) return false;
+    if(!pasa(f)) return false;
     if(q && !((f.TICKER + ' ' + f.NOMBRE + ' ' + f.SECTOR).toLowerCase().includes(q))) return false;
     return true;
   }).sort((a,b) => (a.NOMBRE || a.TICKER).localeCompare(b.NOMBRE || b.TICKER, 'es'));
