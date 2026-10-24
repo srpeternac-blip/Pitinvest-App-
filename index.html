@@ -1162,6 +1162,10 @@ function abrir(tk, mantenerScroll){
       title="Ganancia según el SWING 2026, en dólares">${pctSig(plPct)}${
       plImp != null ? ` <em>(${plImp > 0 ? '+' : ''}${fmtNum(plImp, 0)} $)</em>` : ''}</span>`;
 
+  const fila = (lab, cuerpo) => `<div class="fr"><div class="fr-lab">${esc(lab)}</div><div class="fr-val">${cuerpo}</div></div>`;
+  /* Un hueco vacío no es un fallo: es trabajo que falta. Se dice cuál. */
+  const pend = (q) => `<div class="pend">Pendiente de ${esc(q)}</div>`;
+  const texto = (t, q) => has(t) ? `<div class="txt">${esc(t)}</div>` : pend(q || 'escribir');
   const hayRes = has(f.RES_BPA) || has(f.RES_VENTAS) || has(f.RES_COMENTARIO);
   const bloqueRes = hayRes
     ? `<div class="resline"><b>Ventas</b> ${has(f.RES_VENTAS) ? esc(f.RES_VENTAS) : '—'}
@@ -1170,10 +1174,6 @@ function abrir(tk, mantenerScroll){
     : pend('registrar');
 
   // Una fila por concepto, con su etiqueta a la izquierda, como en su dibujo
-  const fila = (lab, cuerpo) => `<div class="fr"><div class="fr-lab">${esc(lab)}</div><div class="fr-val">${cuerpo}</div></div>`;
-  /* Un hueco vacío no es un fallo: es trabajo que falta. Se dice cuál. */
-  const pend = (q) => `<div class="pend">Pendiente de ${esc(q)}</div>`;
-  const texto = (t, q) => has(t) ? `<div class="txt">${esc(t)}</div>` : pend(q || 'escribir');
   const sector = [f.SECTOR, f.SUBSECTOR].filter(has).map(esc).join(' <span class="sep">·</span> ');
 
   $('#detail').innerHTML = `
