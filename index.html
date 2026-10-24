@@ -632,6 +632,50 @@ function parseCartera(rows){
   return out;
 }
 
+/* ═══════════ Ganancia ═══════════
+   La ganancia no sale del archivo de fichas sino del de «cartera para ia».
+   Motivo, medido el 24/10: Google no evalúa los IMPORTRANGE del archivo de
+   fichas al publicarlo (el CSV sirve «Cargando...» o vacío), pero sí los del de
+   cartera, que llegan completos en todas las lecturas. Allí hay una columna
+   «ganancia» con el ticker y, al lado, el importe en dólares y el porcentaje.
+   El precio sigue saliendo del archivo de fichas, que es GOOGLEFINANCE suyo y
+   se publica siempre. */
+function parseGanancias(rows){
+  const m = new Map();
+  if(!rows.length) return m;
+  const ancho = Math.max(...rows.map(r => r.length));
+  for(let c = 0; c + 2 < ancho; c++){
+    const cab = rows.findIndex(r => String(r[c] || '').trim().toLowerCase() === 'ganancia');
+    if(cab < 0) continue;
+    for(let i = cab + 1; i < rows.length; i++){
+      const tk = limpiaTicker(rows[i][c]);
+      const imp = String(rows[i][c+1] ?? '').trim();
+      const pct = String(rows[i][c+2] ?? '').trim();
+      if(!tk || (!imp && !pct) || m.has(tk)) continue;
+      m.set(tk, {imp, pct});
+    }
+  }
+  return m;
+}
+function aplicaGanancias(fs, g){
+  if(!g.size) return fs;
+  return fs.map(f => {
+    const v = g.get(String(f.TICKER || '').toUpperCase());
+    if(!v) return f;
+    return {...f,
+      PL_IMP: has(v.imp) ? v.imp : f.PL_IMP,
+      PL_PCT: has(v.pct) ? v.pct : f.PL_PCT};
+  });
+}
+/* El porcentaje puede llegar ya en porcentaje («62,4%») o en tanto por uno
+   («0,624», como venía antes del Sheet de fichas). Se normaliza a tanto por
+   uno, que es lo que espera el resto de la app. */
+function fraccion(s){
+  const n = num(s);
+  if(n == null) return null;
+  return /%/.test(String(s)) ? n / 100 : n;
+}
+
 /* ═══════════ Worker ═══════════ */
 const rv = (x) => (x && typeof x === 'object' && 'raw' in x) ? x.raw : (typeof x === 'number' ? x : null);
 async function api(path){
@@ -683,7 +727,9 @@ async function pedirCartera(){
    en vez de dejar el hueco en blanco. El resto de la ficha es texto y no falla. */
 const VIVAS = ['PRECIO','PL_PCT','PL_IMP'];
 const hayAlguno = (fs, c) => fs.some(f => has(f[c]));
-const faltaAlgo = (fs) => !fs.length || VIVAS.some(c => !hayAlguno(fs, c));
+/* Solo el precio sale del archivo de fichas, así que es lo único por lo que
+   merece la pena insistir. La ganancia viene del archivo «cartera para ia». */
+const faltaAlgo = (fs) => !fs.length || !hayAlguno(fs, 'PRECIO');
 let vivosConservados = false;   // true cuando algo de lo que se ve no es de ahora
 /* Rellena los huecos de las columnas vivas con lo que ya se tenía, columna a
    columna: una descarga puede traer el precio y otra la ganancia. */
@@ -732,7 +778,10 @@ async function cargar(){
     historial = aObjetos(parseCSV(h), ['FECHA','TICKER','AGENTE','NOTA']).filter(x => has(x.NOTA));
     macroSheet = aObjetos(parseCSV(m), ['FECHA','HORA','EVENTO','IMPORTANCIA','NOTA']).filter(x => has(x.EVENTO));
     pendientes = aObjetos(parseCSV(p), ['FECHA_LIMITE','ASUNTO','DETALLE','ESTADO','CREADO']).filter(x => has(x.ASUNTO));
-    cartera = parseCartera(parseCSV(ca));
+    const filasCartera = parseCSV(ca);
+    cartera = parseCartera(filasCartera);
+    fichas = aplicaGanancias(fichas, parseGanancias(filasCartera));
+    if(hayAlguno(fichas, 'PL_PCT')) vivosConservados = false;
     sectores = aObjetos(parseCSV(se), ['SECTOR_YAHOO','NOMBRE_ES','PER','EV_EBITDA','P_FCF','FUENTE','ACTUALIZADO']).filter(x => has(x.SECTOR_YAHOO));
     try{ localStorage.setItem(LS, JSON.stringify({ts:Date.now(), fichas, historial, macroSheet, pendientes, cartera, sectores})); }catch(e){}
     pintarTodo(new Date());
@@ -1242,7 +1291,7 @@ function pintarLista(){
   $('#list').innerHTML = list.length ? list.map(f => {
     const est = (f.ESTADO || '').toLowerCase();
     const p = num(f.PRECIO);
-    const pl = num(f.PL_PCT);   // viene del SWING 2026; vacío si no la tiene comprada
+    const pl = fraccion(f.PL_PCT);   // del SWING 2026; vacío si no la tiene comprada
     const conocido = ['cartera','watchlist','descartada'].includes(est);
     return `<button class="litem ${sel===f.TICKER.toUpperCase()?'sel':''}" data-tk="${esc(f.TICKER)}">
       <span class="ldot d-${conocido?est:'otro'}" title="${esc(f.ESTADO||'')}"></span>
@@ -1366,7 +1415,7 @@ function abrir(tk, mantenerScroll){
   const est = (f.ESTADO || '').toLowerCase();
   const div = divisaDe(f.SIMBOLO_GF);
   const precio = num(f.PRECIO);
-  const plPct = num(f.PL_PCT), plImp = num(f.PL_IMP);
+  const plPct = fraccion(f.PL_PCT), plImp = num(f.PL_IMP);
   const hist = historial.filter(h => (h.TICKER || '').toUpperCase() === tk)
     .sort((a,b) => String(b.FECHA).localeCompare(String(a.FECHA)));   // lo más reciente arriba
 
