@@ -207,6 +207,14 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .p-ampliar{color:var(--verde);border-color:rgba(74,222,128,.5);background:rgba(74,222,128,.12)}
 .p-mantener{color:var(--pos);border-color:rgba(247,184,60,.5);background:rgba(247,184,60,.12)}
 .p-reducir{color:var(--alarma);border-color:rgba(255,95,77,.5);background:rgba(255,95,77,.12)}
+/* Una fila por concepto: etiqueta a la izquierda, contenido a la derecha */
+.fr{display:grid;grid-template-columns:132px minmax(0,1fr);gap:18px;padding:15px 0;border-bottom:1px solid var(--borde2)}
+.fr:last-of-type{border-bottom:0}
+.fr-lab{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--pos);padding-top:4px}
+.fr-val{min-width:0}
+.fr-val .txt{font-size:14.5px}
+.sep{color:var(--tenue)}
 .cifras{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:11px}
 .cifra{display:flex;flex-direction:column;gap:3px;background:var(--banda);border:1px solid var(--borde);
   border-radius:9px;padding:9px 14px;font-family:var(--mono);font-size:17px;font-weight:600}
@@ -329,6 +337,9 @@ h4.sec:first-child{margin-top:0}
   .q-price{font-size:26px}
   .tab{flex:1;padding:11px 8px;text-align:center}
   .pane{border-radius:0 0 14px 14px}
+  .fr{grid-template-columns:1fr;gap:7px;padding:13px 0}
+  .fr-lab{padding-top:0}
+  .dtop .btn{margin-left:0}
   .wknav{margin-left:0;width:100%}
   .brand{font-size:18px}
 }
@@ -1146,6 +1157,11 @@ function abrir(tk, mantenerScroll){
        ${has(f.RES_COMENTARIO) ? `<div class="txt dim">${esc(f.RES_COMENTARIO)}</div>` : ''}`
     : '<div class="nd">Sin resultados anotados.</div>';
 
+  // Una fila por concepto, con su etiqueta a la izquierda, como en su dibujo
+  const fila = (lab, cuerpo) => `<div class="fr"><div class="fr-lab">${esc(lab)}</div><div class="fr-val">${cuerpo}</div></div>`;
+  const texto = (t) => has(t) ? `<div class="txt">${esc(t)}</div>` : '<div class="nd">—</div>';
+  const sector = [f.SECTOR, f.SUBSECTOR].filter(has).map(esc).join(' <span class="sep">·</span> ');
+
   $('#detail').innerHTML = `
     <div class="espectro"></div>
     <div class="dhead">
@@ -1153,13 +1169,6 @@ function abrir(tk, mantenerScroll){
         <div class="dname">${esc(f.NOMBRE || f.TICKER)}<span class="dtick">${esc(f.TICKER)}</span></div>
         ${pl}
         <button class="btn" data-val="${esc(yahooDe(f.SIMBOLO_GF, f.TICKER))}">Analizar</button>
-      </div>
-      <div class="dchips">
-        ${has(f.ESTADO) ? `<span class="chip est-${esc(est)}">${esc(f.ESTADO)}</span>` : ''}
-        ${has(f.CARTERA) ? `<span class="chip">${esc(f.CARTERA)}</span>` : ''}
-        ${has(f.SECTOR) ? `<span class="chip">${esc(f.SECTOR)}</span>` : ''}
-        ${has(f.SUBSECTOR) ? `<span class="chip">${esc(f.SUBSECTOR)}</span>` : ''}
-        ${chipPosicion(f.POSICION)}
       </div>
     </div>
 
@@ -1169,24 +1178,17 @@ function abrir(tk, mantenerScroll){
     </div>
 
     <div class="pane" id="pane-gen">
-      <h4 class="sec">Descripción</h4>
-      ${has(f.DESCRIPCION) ? `<div class="txt">${esc(f.DESCRIPCION)}</div>` : '<div class="nd">Sin descripción.</div>'}
-
-      <h4 class="sec">Últimos resultados</h4>
-      ${bloqueRes}
-
-      <h4 class="sec">Próximos resultados</h4>
-      ${has(f.PROX_RESULTADOS) ? `<div class="txt">${esc(f.PROX_RESULTADOS)}</div>` : '<div class="nd">Sin fecha.</div>'}
-      ${has(f.QUE_VIGILAR) ? `<div class="vigilar"><b>Qué vigilar</b>${esc(f.QUE_VIGILAR)}</div>` : ''}
-
-      <h4 class="sec">Tesis</h4>
-      ${has(f.TESIS_PITI) ? `<div class="tesis"><b>La tuya</b><div class="txt">${esc(f.TESIS_PITI)}</div></div>` : ''}
-      ${has(f.TESIS_IA) ? `<div class="tesis ia"><b>La de la IA</b><div class="txt dim">${esc(f.TESIS_IA)}</div></div>` : ''}
-      ${!has(f.TESIS_PITI) && !has(f.TESIS_IA) ? '<div class="nd">Sin tesis escrita.</div>' : ''}
-
-      <h4 class="sec">Plan de acción</h4>
-      ${has(f.PLAN_ACCION) ? `<div class="txt">${esc(f.PLAN_ACCION)}</div>` : '<div class="nd">Sin plan.</div>'}
-      ${niveles ? `<div class="niveles">${niveles}</div>` : ''}
+      ${fila('Descripción', texto(f.DESCRIPCION))}
+      ${fila('Sector', sector ? `<div class="txt">${sector}</div>` : '<div class="nd">—</div>')}
+      ${fila('Cartera', has(f.CARTERA) ? `<div class="txt">${esc(f.CARTERA)}</div>` : '<div class="nd">—</div>')}
+      ${fila('Posición', chipPosicion(f.POSICION) || '<div class="nd">—</div>')}
+      ${fila('Resultados', bloqueRes)}
+      ${fila('Próximos', (has(f.PROX_RESULTADOS) ? `<div class="txt">${esc(f.PROX_RESULTADOS)}</div>` : '<div class="nd">—</div>') +
+          (has(f.QUE_VIGILAR) ? `<div class="vigilar"><b>Qué vigilar</b>${esc(f.QUE_VIGILAR)}</div>` : ''))}
+      ${fila('Tesis', (has(f.TESIS_PITI) ? `<div class="txt">${esc(f.TESIS_PITI)}</div>` : '') +
+          (has(f.TESIS_IA) ? `<div class="tesis ia"><b>La de la IA</b><div class="txt dim">${esc(f.TESIS_IA)}</div></div>` : '') +
+          (!has(f.TESIS_PITI) && !has(f.TESIS_IA) ? '<div class="nd">—</div>' : ''))}
+      ${fila('Plan de acción', texto(f.PLAN_ACCION) + (niveles ? `<div class="niveles">${niveles}</div>` : ''))}
       <div class="foot">Actualizada: ${has(f.ACTUALIZADO) ? esc(f.ACTUALIZADO) : '—'}</div>
     </div>
 
