@@ -235,6 +235,12 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
   background:rgba(255,95,77,.1);border:1px solid rgba(255,95,77,.35);
   border-radius:9px;padding:8px 11px}
 .pnivel{font-family:var(--mono);font-size:13px;color:var(--media);margin-left:9px}
+/* Los niveles de entrada y salida, debajo del plan de acción */
+.niveles{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.nchip{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--media);
+  border:1px solid var(--borde);border-radius:7px;padding:4px 10px;background:var(--panel)}
+.nchip b{font-family:var(--sans);font-size:9.5px;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--tenue);margin-right:7px}
 .cifras{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:11px}
 .cifra{display:flex;flex-direction:column;gap:3px;background:var(--banda);border:1px solid var(--borde);
   border-radius:9px;padding:9px 14px;font-family:var(--mono);font-size:17px;font-weight:600}
@@ -1323,25 +1329,33 @@ function pintarLista(){
 /* ═══════════ Ficha ═══════════ */
 /* Qué quiere hacer con la posición. Lista abierta: si escribe otra cosa, se
    muestra tal cual sin color en vez de romperse. */
+/* Posición dice CÓMO está la posición, nada más: ni precios ni qué hacer.
+   En construcción  — abierta pero con poco peso, quiere seguir cargando.
+   Completa         — ya tiene dentro todo el capital que quería meterle.
+   Lista para salir — a punto de soltarla.
+   Lista abierta: si alguien escribe otra cosa se muestra tal cual, sin color,
+   en vez de romperse o de inventarse un estado. */
 const POS = [
-  [/construir|constru/i, 'Construir', 'p-construir'],
-  [/ampliar|ampli/i,     'Ampliar',   'p-ampliar'],
-  [/mantener|manten/i,   'Mantener',  'p-mantener'],
-  [/reducir|reduc|eliminar|salir/i, 'Reducir', 'p-reducir']
+  [/construcc|construir|constru/i,          'En construcción',  'p-construir'],
+  [/completa|completo|complet/i,            'Completa',         'p-mantener'],
+  [/salir|salida|reducir|reduc|eliminar/i,  'Lista para salir', 'p-reducir']
 ];
-/* Ampliar y construir llevan al lado el precio al que quiere cargar (entrada 1);
-   reducir, el precio al que quiere recoger (salida). Mantener va solo. */
 function chipPosicion(f){
   const txt = f.POSICION;
   if(!has(txt)) return '';
   const m = POS.find(([re]) => re.test(txt));
-  const clave = m ? m[1] : '';
-  const nivel = (clave === 'Ampliar' || clave === 'Construir') ? f.ENTRADA_1
-              : (clave === 'Reducir') ? f.SALIDA : '';
-  // El nivel se pinta tal y como está escrito: si puso 25, sale 25, no 25,00
-  const crudo = String(nivel || '').trim(), div = divisaDe(f.SIMBOLO_GF);
-  return `<span class="pchip ${m ? m[2] : ''}">${esc(m ? clave : txt)}</span>` +
-    (crudo ? `<span class="pnivel">en ${esc(crudo)}${esc(div)}</span>` : '');
+  return `<span class="pchip ${m ? m[2] : ''}">${esc(m ? m[1] : txt)}</span>`;
+}
+/* Los niveles van con el plan de acción, que es donde decide a qué precio
+   entra o sale. Se pintan tal y como están escritos: si puso 25, sale 25. */
+function nivelesPlan(f){
+  const div = divisaDe(f.SIMBOLO_GF);
+  const chip = (lab, v) => `<span class="nchip"><b>${lab}</b>${esc(String(v).trim())}${esc(div)}</span>`;
+  const out = [];
+  if(has(f.ENTRADA_1)) out.push(chip('Entrada', f.ENTRADA_1));
+  if(has(f.ENTRADA_2)) out.push(chip('Entrada', f.ENTRADA_2));
+  if(has(f.SALIDA))    out.push(chip('Salida',  f.SALIDA));
+  return out.length ? `<div class="niveles">${out.join('')}</div>` : '';
 }
 const bloque = (label, txt, dim) => `<h4 class="sec">${esc(label)}</h4>` +
   (has(txt) ? `<div class="txt${dim?' dim':''}">${esc(txt)}</div>` : '<div class="nd">Sin datos.</div>');
@@ -1468,10 +1482,11 @@ function abrir(tk, mantenerScroll){
      de entrada; ahí no hay plan de acción. */
   const esWatch = est === 'watchlist';
   const niveles = [f.ENTRADA_1, f.ENTRADA_2].filter(has).map(n => esc(String(n).trim()) + div);
-  const hayPlan = has(f.POSICION) || has(f.PLAN_ACCION);
-  const bloquePlan = hayPlan
-    ? (chipPosicion(f) || '') + (has(f.PLAN_ACCION) ? `<div class="txt">${esc(f.PLAN_ACCION)}</div>` : '')
-    : pend('decidir');
+  /* Posición y plan de acción son dos filas distintas: una dice cómo está la
+     posición y la otra qué quiere hacer con ella y a qué precio. */
+  const bloquePlan = has(f.PLAN_ACCION)
+    ? `<div class="txt">${esc(f.PLAN_ACCION)}</div>` + nivelesPlan(f)
+    : (nivelesPlan(f) || pend('decidir'));
   const prox = proxResultados(f);
   const bloqueProx = prox
     ? `<div class="txt">${esc(prox.txt)}</div>` +
@@ -1479,7 +1494,8 @@ function abrir(tk, mantenerScroll){
     : pend('registrar');
 
   const comunes = [
-    fila('Tesis', texto(f.TESIS_PITI, 'escribir')),
+    // La tesis es por qué la compró, no qué hacer con ella: eso es el plan
+    fila('Tesis', texto(f.TESIS_PITI, 'escribir: por qué la quieres en cartera')),
     fila('Tesis de la IA', texto(f.TESIS_IA, 'analizar')),
     fila('Resultados', bloqueRes),
     fila('Próximos', bloqueProx +
@@ -1490,7 +1506,8 @@ function abrir(tk, mantenerScroll){
     fila('Sector', sector ? `<div class="txt">${sector}</div>` : pend('clasificar')),
     esWatch ? fila('Cartera', has(f.CARTERA) ? `<div class="txt">${esc(f.CARTERA)}</div>` : pend('asignar')) : '',
     esWatch ? fila('Entrada', niveles.length ? `<div class="txt">${niveles.join(' <span class="sep">·</span> luego ')}</div>` : pend('decidir'))
-            : fila('Plan', bloquePlan),
+            : fila('Posición', chipPosicion(f) || pend('decidir')),
+    esWatch ? '' : fila('Plan de acción', bloquePlan),
     ...comunes
   ].join('');
 
