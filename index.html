@@ -647,15 +647,54 @@ async function pedirCartera(){
   return '';
 }
 
+/* Las tres últimas columnas de la ficha (precio y ganancia) son fórmulas vivas:
+   GOOGLEFINANCE para el precio e IMPORTRANGE del SWING 2026 para la ganancia.
+   Google publica el CSV haciendo una foto del Sheet, y casi siempre la hace
+   antes de acabar de calcularlas: medido el 24/10, de ocho descargas seguidas
+   solo dos traían esas columnas y seis llegaban vacías. El resto de la ficha es
+   texto escrito a mano y nunca falla.
+   Así que se insiste hasta pillar una descarga buena y, si no hay suerte, se
+   conservan los últimos valores buenos en vez de dejar el hueco en blanco. */
+const VIVAS = ['PRECIO','PL_PCT','PL_IMP'];
+const traeVivos = (fs) => fs.some(f => has(f.PRECIO));
+let vivosConservados = false;   // true cuando el precio que se ve no es de ahora
+async function pedirFichas(intentos = 10){
+  let ultimo = [];
+  for(let i = 0; i < intentos; i++){
+    const fs = filasAObjetos(parseCSV(await pedir('FICHAS')));
+    if(fs.length) ultimo = fs;
+    if(traeVivos(fs)){ vivosConservados = false; return fs; }
+    await new Promise(r => setTimeout(r, 600));
+  }
+  return ultimo;
+}
+function conservaVivos(nuevas, viejas){
+  if(!nuevas.length || traeVivos(nuevas) || !viejas.length) return nuevas;
+  vivosConservados = true;
+  const antes = new Map(viejas.map(f => [String(f.TICKER).toUpperCase(), f]));
+  return nuevas.map(f => {
+    const v = antes.get(String(f.TICKER).toUpperCase());
+    if(!v) return f;
+    const o = {...f};
+    VIVAS.forEach(c => { if(!has(o[c]) && has(v[c])) o[c] = v[c]; });
+    return o;
+  });
+}
+function leeCache(){
+  try{ return JSON.parse(localStorage.getItem(LS) || 'null'); }catch(x){ return null; }
+}
+
 async function cargar(){
   const hs = $('#hstat');
   hs.innerHTML = '<b>—</b><span class="spin"></span>';
+  const cacheado = leeCache();
+  const previas = fichas.length ? fichas.slice() : ((cacheado && cacheado.fichas) || []);
   try{
     const [f, h, m, p, ca, se] = await Promise.all([
-      pedir('FICHAS'), pedirSuave('HISTORIAL'), pedirSuave('MACRO'),
+      pedirFichas(), pedirSuave('HISTORIAL'), pedirSuave('MACRO'),
       pedirSuave('PENDIENTES'), pedirCartera(), pedirSuave('SECTORES')
     ]);
-    fichas = filasAObjetos(parseCSV(f));
+    fichas = conservaVivos(f, previas);
     if(!fichas.length) throw new Error('VACIO');
     historial = aObjetos(parseCSV(h), ['FECHA','TICKER','AGENTE','NOTA']).filter(x => has(x.NOTA));
     macroSheet = aObjetos(parseCSV(m), ['FECHA','HORA','EVENTO','IMPORTANCIA','NOTA']).filter(x => has(x.EVENTO));
@@ -665,8 +704,7 @@ async function cargar(){
     try{ localStorage.setItem(LS, JSON.stringify({ts:Date.now(), fichas, historial, macroSheet, pendientes, cartera, sectores})); }catch(e){}
     pintarTodo(new Date());
   }catch(e){
-    let cache = null;
-    try{ cache = JSON.parse(localStorage.getItem(LS) || 'null'); }catch(x){}
+    const cache = cacheado;
     if(cache && cache.fichas && cache.fichas.length){
       fichas = cache.fichas; historial = cache.historial || []; macroSheet = cache.macroSheet || [];
       pendientes = cache.pendientes || []; cartera = cache.cartera || []; sectores = cache.sectores || [];
@@ -690,7 +728,9 @@ function mensajeError(e){
 }
 function pintarTodo(ts, deCache){
   $('#hstat').innerHTML = '<b>' + fichas.length + ' fichas · ' + cartera.length + ' posiciones</b>' +
-    (deCache ? 'copia local' : ts.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
+    (deCache ? 'copia local'
+             : ts.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}) +
+               (vivosConservados ? ' · precios de antes' : ''));
   pintarAgenda(); pintarCalendario(); pintarMacro(); pintarTareas(); pintarFiltros(); pintarLista();
   const hash = decodeURIComponent((location.hash || '').replace('#','')).toUpperCase();
   const quiere = sel || hash;
