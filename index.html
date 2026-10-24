@@ -222,6 +222,8 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .cifra{display:flex;flex-direction:column;gap:3px;background:var(--banda);border:1px solid var(--borde);
   border-radius:9px;padding:9px 14px;font-family:var(--mono);font-size:17px;font-weight:600}
 .cifra b{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--tenue)}
+.pend{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.06em;color:var(--tenue);
+  border:1px dashed var(--borde);border-radius:7px;padding:5px 10px;display:inline-block}
 .vigilar{margin-top:11px;border-left:3px solid var(--pos);background:rgba(247,184,60,.07);
   border-radius:0 9px 9px 0;padding:11px 14px;font-size:14.5px;line-height:1.6;color:var(--media)}
 .vigilar b{display:block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.15em;
@@ -712,6 +714,18 @@ function posicionDe(tk){
     entrada: f ? num(f.ENTRADA_1) : null
   };
 }
+/* El calendario de Nasdaq solo cubre EE.UU. Si su ficha dice que la empresa
+   cotiza en París o Toronto, un ticker igual en Nasdaq es OTRA empresa:
+   DG es Vinci para él y Dollar General allí. Así no se confunden. */
+const PREF_USA = ['NYSE','NASDAQ','NYSEARCA','NYSEAMERICAN','BATS','OTCMKTS'];
+function cotizaEnUSA(tk){
+  const f = fichaDe(tk), c = carteraDe(tk);
+  const gf = (f && f.SIMBOLO_GF) || (c && c.GF) || '';
+  const p = prefijoDe(gf);
+  return !p || PREF_USA.includes(p);          // sin prefijo se asume EE.UU.
+}
+const esMiaEnUSA = (tk) => !!(posicionDe(tk) && cotizaEnUSA(tk));
+
 function distancia(precio, nivel, tipo){
   if(precio == null || nivel == null || precio <= 0 || nivel <= 0) return null;
   if(tipo === 'salida'){
@@ -754,8 +768,9 @@ async function cargarSemana(off){
         sesion: SES(r.time),
         cap: capNum(r.marketCap)
       })).filter(x => x.ticker);
-      const mias = lista.filter(x => posicionDe(x.ticker));
-      const otras = lista.filter(x => !posicionDe(x.ticker) && x.cap >= CAP_MINIMA).sort((a,b) => b.cap - a.cap);
+      lista.forEach(x => { x.mia = esMiaEnUSA(x.ticker); });
+      const mias = lista.filter(x => x.mia);
+      const otras = lista.filter(x => !x.mia && x.cap >= CAP_MINIMA).sort((a,b) => b.cap - a.cap);
       resultados[iso] = [...mias, ...otras];
     }catch(e){ resultados[iso] = []; }
   }));
@@ -827,11 +842,11 @@ function resultadosDelDia(iso){
   for(const tk in misFechas){
     if(ya.has(tk) || !misFechas[tk].includes(iso)) continue;
     const c = carteraDe(tk), f = fichaDe(tk);
-    extra.push({ ticker: tk, nombre: (f && f.NOMBRE) || (c && c.NOMBRE) || '', sesion: 'UNK', cap: 0 });
+    extra.push({ ticker: tk, nombre: (f && f.NOMBRE) || (c && c.NOMBRE) || '', sesion: 'UNK', cap: 0, mia: true });
   }
   if(!extra.length) return base;
-  const mias = base.filter(x => posicionDe(x.ticker));
-  const otras = base.filter(x => !posicionDe(x.ticker));
+  const mias = base.filter(x => x.mia);
+  const otras = base.filter(x => !x.mia);
   return [...mias, ...extra, ...otras];
 }
 
@@ -913,7 +928,7 @@ function macroDe(iso){
 /* ═══════════ Filas ═══════════ */
 /* Calendario: solo el día y la empresa */
 function filaCol(c){
-  const p = posicionDe(c.ticker);
+  const p = c.mia ? posicionDe(c.ticker) : null;
   const f = p && p.ficha;
   const et = f ? 'button' : 'div';
   return `<${et} class="cr ${p?'mia '+p.clase:''}" ${f?`data-ir="${esc(f.TICKER)}"`:''}>
@@ -924,7 +939,7 @@ function filaCol(c){
 }
 /* Agenda: fila ancha, ahí sí interesa cuánto falta para el nivel */
 function filaResultado(c){
-  const p = posicionDe(c.ticker);
+  const p = c.mia ? posicionDe(c.ticker) : null;
   const f = p && p.ficha;
   const d = p ? distancia(p.precio, p.entrada, 'entrada') : null;
   const et = f ? 'button' : 'div';
@@ -939,8 +954,8 @@ function filaResultado(c){
 }
 function grupo(titulo, cls, arr){
   if(!arr.length) return '';
-  const mias = arr.filter(x => posicionDe(x.ticker));
-  const otras = arr.filter(x => !posicionDe(x.ticker)).slice(0, MAX_POR_SESION);
+  const mias = arr.filter(x => x.mia);
+  const otras = arr.filter(x => !x.mia).slice(0, MAX_POR_SESION);
   if(!mias.length && !otras.length) return '';
   return `<div class="grupo">${titulo ? `<div class="ses-tit ${cls}">${esc(titulo)}</div>` : ''}` +
     [...mias, ...otras].map(filaCol).join('') + '</div>';
@@ -987,8 +1002,8 @@ function cabeceraSemana(titulo, sub, dias, off, tipo, extra){
 function pintarAgenda(){
   const hoy = hoyISO(), hoyD = new Date();
   const res = resultadosDelDia(hoy) || [], mac = macroDe(hoy);
-  const mias = res.filter(c => posicionDe(c.ticker));
-  const otras = res.filter(c => !posicionDe(c.ticker)).slice(0, 12);
+  const mias = res.filter(c => c.mia);
+  const otras = res.filter(c => !c.mia).slice(0, 12);
 
   const abiertas = pendientes.filter(p => (p.ESTADO || 'abierto').toLowerCase() !== 'cerrado');
   const pend = abiertas.map(p => ({...p, dias: diasHasta(p.FECHA_LIMITE)}))
@@ -1038,7 +1053,7 @@ function pintarCalendario(){
     (!workerUrl ? '<div class="err">El calendario sale del worker. Pulsa el engranaje de arriba y pega su URL.</div>' : '') +
     '<div class="semana">' + dias.map(d => {
       const iso = aISO(d), bruto = resultadosDelDia(iso);
-      const res = bruto == null ? null : (todos ? bruto : bruto.filter(x => posicionDe(x.ticker)));
+      const res = bruto == null ? null : (todos ? bruto : bruto.filter(x => x.mia));
       let cuerpo;
       if(res == null) cuerpo = '<div class="col-v"><span class="spin"></span></div>';
       else if(!res.length) cuerpo = `<div class="col-v">${todos ? 'Nada' : 'Nada tuyo'}</div>`;
@@ -1117,9 +1132,10 @@ function chipPosicion(f){
   const clave = m ? m[1] : '';
   const nivel = (clave === 'Ampliar' || clave === 'Construir') ? f.ENTRADA_1
               : (clave === 'Reducir') ? f.SALIDA : '';
-  const v = num(nivel), div = divisaDe(f.SIMBOLO_GF);
+  // El nivel se pinta tal y como está escrito: si puso 25, sale 25, no 25,00
+  const crudo = String(nivel || '').trim(), div = divisaDe(f.SIMBOLO_GF);
   return `<span class="pchip ${m ? m[2] : ''}">${esc(m ? clave : txt)}</span>` +
-    (v != null ? `<span class="pnivel">en ${fmtNum(v, v>=100?0:2)}${esc(div)}</span>` : '');
+    (crudo ? `<span class="pnivel">en ${esc(crudo)}${esc(div)}</span>` : '');
 }
 const bloque = (label, txt, dim) => `<h4 class="sec">${esc(label)}</h4>` +
   (has(txt) ? `<div class="txt${dim?' dim':''}">${esc(txt)}</div>` : '<div class="nd">Sin datos.</div>');
@@ -1151,11 +1167,13 @@ function abrir(tk, mantenerScroll){
     ? `<div class="resline"><b>Ventas</b> ${has(f.RES_VENTAS) ? esc(f.RES_VENTAS) : '—'}
          <span class="gion">—</span> <b>BPA</b> ${has(f.RES_BPA) ? esc(f.RES_BPA) : '—'}</div>
        ${has(f.RES_COMENTARIO) ? `<div class="txt">${esc(f.RES_COMENTARIO)}</div>` : ''}`
-    : '<div class="nd">—</div>';
+    : pend('registrar');
 
   // Una fila por concepto, con su etiqueta a la izquierda, como en su dibujo
   const fila = (lab, cuerpo) => `<div class="fr"><div class="fr-lab">${esc(lab)}</div><div class="fr-val">${cuerpo}</div></div>`;
-  const texto = (t) => has(t) ? `<div class="txt">${esc(t)}</div>` : '<div class="nd">—</div>';
+  /* Un hueco vacío no es un fallo: es trabajo que falta. Se dice cuál. */
+  const pend = (q) => `<div class="pend">Pendiente de ${esc(q)}</div>`;
+  const texto = (t, q) => has(t) ? `<div class="txt">${esc(t)}</div>` : pend(q || 'escribir');
   const sector = [f.SECTOR, f.SUBSECTOR].filter(has).map(esc).join(' <span class="sep">·</span> ');
 
   $('#detail').innerHTML = `
@@ -1174,16 +1192,16 @@ function abrir(tk, mantenerScroll){
     </div>
 
     <div class="pane" id="pane-gen">
-      ${fila('Descripción', texto(f.DESCRIPCION))}
-      ${fila('Sector', sector ? `<div class="txt">${sector}</div>` : '<div class="nd">—</div>')}
-      ${fila('Cartera', has(f.CARTERA) ? `<div class="txt">${esc(f.CARTERA)}</div>` : '<div class="nd">—</div>')}
-      ${fila('Posición', chipPosicion(f) || '<div class="nd">—</div>')}
+      ${fila('Descripción', texto(f.DESCRIPCION, 'describir'))}
+      ${fila('Sector', sector ? `<div class="txt">${sector}</div>` : pend('clasificar'))}
+      ${fila('Cartera', has(f.CARTERA) ? `<div class="txt">${esc(f.CARTERA)}</div>` : pend('asignar'))}
+      ${fila('Posición', chipPosicion(f) || pend('decidir'))}
       ${fila('Resultados', bloqueRes)}
-      ${fila('Próximos', (has(f.PROX_RESULTADOS) ? `<div class="txt">${esc(f.PROX_RESULTADOS)}</div>` : '<div class="nd">—</div>') +
+      ${fila('Próximos', (has(f.PROX_RESULTADOS) ? `<div class="txt">${esc(f.PROX_RESULTADOS)}</div>` : pend('registrar')) +
           (has(f.QUE_VIGILAR) ? `<div class="vigilar"><b>Qué vigilar</b>${esc(f.QUE_VIGILAR)}</div>` : ''))}
-      ${fila('Tesis', texto(f.TESIS_PITI))}
-      ${fila('Tesis de la IA', texto(f.TESIS_IA))}
-      ${fila('Plan de acción', texto(f.PLAN_ACCION))}
+      ${fila('Tesis', texto(f.TESIS_PITI, 'escribir'))}
+      ${fila('Tesis de la IA', texto(f.TESIS_IA, 'analizar'))}
+      ${fila('Plan de acción', texto(f.PLAN_ACCION, 'decidir'))}
       <div class="foot">Actualizada: ${has(f.ACTUALIZADO) ? esc(f.ACTUALIZADO) : '—'}</div>
     </div>
 
