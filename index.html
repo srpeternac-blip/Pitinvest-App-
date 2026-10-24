@@ -612,11 +612,26 @@ const limpiaTicker = (s) => {
   const t = String(s||'').trim();
   return (t.includes(':') ? t.split(':').pop() : t).trim().toUpperCase();
 };
+/* Las tres columnas del bloque «ganancia» no son posiciones: si se leyeran como
+   tales, el importe y el porcentaje entrarían como si fueran tickers y la
+   cuenta de posiciones se iría al doble. */
+function columnasGanancia(rows){
+  const fuera = new Set();
+  const ancho = rows.length ? Math.max(...rows.map(r => r.length)) : 0;
+  for(let c = 0; c < ancho; c++){
+    if(rows.some(r => String(r[c] || '').trim().toLowerCase() === 'ganancia')){
+      fuera.add(c); fuera.add(c+1); fuera.add(c+2);
+    }
+  }
+  return fuera;
+}
 function parseCartera(rows){
   if(!rows.length) return [];
   const out = [], vistos = new Set();
+  const fuera = columnasGanancia(rows);
   const ancho = Math.max(...rows.map(r => r.length));
   for(let c = 0; c < ancho; c++){
+    if(fuera.has(c)) continue;
     const pares = rows.filter(r => has(r[c]) && has(r[c+1]));
     if(pares.length < 2) continue;
     let etiqueta = '';
