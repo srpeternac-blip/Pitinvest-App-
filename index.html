@@ -78,6 +78,9 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .ltick{font-family:var(--mono);font-weight:700;font-size:13.5px}
 .lname{font-size:12px;color:var(--tenue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lprice{font-family:var(--mono);font-size:12.5px;color:var(--media);text-align:right;flex:none}
+.lright{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex:none}
+.lpl{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:-.01em}
+.lpl.pos{color:var(--verde)} .lpl.neg{color:var(--alarma)}
 .lempty{padding:22px 14px;color:var(--tenue);font-size:13.5px;text-align:center}
 
 .view{display:none}
@@ -217,6 +220,8 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .resline{font-family:var(--mono);font-size:14.5px;font-weight:600;margin-bottom:9px}
 .resline b{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--tenue);margin-right:3px}
 .resline .gion{color:var(--tenue);margin:0 7px;font-weight:400}
+/* Un porcentaje que llegó sin el signo de % : puede estar mal en el Sheet */
+.dudoso{color:var(--pos);border-bottom:1px dotted var(--pos);cursor:help}
 .pnivel{font-family:var(--mono);font-size:13px;color:var(--media);margin-left:9px}
 .cifras{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:11px}
 .cifra{display:flex;flex-direction:column;gap:3px;background:var(--banda);border:1px solid var(--borde);
@@ -1164,12 +1169,16 @@ function pintarLista(){
   $('#list').innerHTML = list.length ? list.map(f => {
     const est = (f.ESTADO || '').toLowerCase();
     const p = num(f.PRECIO);
+    const pl = num(f.PL_PCT);   // viene del SWING 2026; vacío si no la tiene comprada
     const conocido = ['cartera','watchlist','descartada'].includes(est);
     return `<button class="litem ${sel===f.TICKER.toUpperCase()?'sel':''}" data-tk="${esc(f.TICKER)}">
       <span class="ldot d-${conocido?est:'otro'}" title="${esc(f.ESTADO||'')}"></span>
       <span class="lmain"><span class="ltick">${esc(f.TICKER)}</span>
         <span class="lname">${esc(f.NOMBRE || '')}</span></span>
-      <span class="lprice">${p!=null ? fmtNum(p, p>=100?0:2) + divisaDe(f.SIMBOLO_GF) : ''}</span>
+      <span class="lright">
+        <span class="lprice">${p!=null ? fmtNum(p, p>=100?0:2) + divisaDe(f.SIMBOLO_GF) : ''}</span>
+        ${pl!=null ? `<span class="lpl ${pl>=0?'pos':'neg'}">${pctSig(pl)}</span>` : ''}
+      </span>
     </button>`;
   }).join('') : '<div class="lempty">Nada que coincida.</div>';
 }
@@ -1226,10 +1235,17 @@ function abrir(tk, mantenerScroll){
   /* Un hueco vacío no es un fallo: es trabajo que falta. Se dice cuál. */
   const pend = (q) => `<div class="pend">Pendiente de ${esc(q)}</div>`;
   const texto = (t, q) => has(t) ? `<div class="txt">${esc(t)}</div>` : pend(q || 'escribir');
+  /* Los porcentajes de resultados se escriben como texto ("+4,3%"). Si un chat
+     olvida el apóstrofo, Google los convierte en número y en la celda queda
+     0,043 en vez de +4,3%. El peligro no es el dato: es que no se note. Si
+     llega sin el signo de porcentaje, se pinta marcado para que cante. */
+  const resPct = (v) => !has(v) ? '—'
+    : /%/.test(String(v)) ? esc(v)
+    : `<span class="dudoso" title="En el Sheet esta celda no lleva el signo de %. Probablemente Google la convirtió en número al escribirla sin apóstrofo. Revísala.">${esc(v)} ⚠</span>`;
   const hayRes = has(f.RES_BPA) || has(f.RES_VENTAS) || has(f.RES_COMENTARIO);
   const bloqueRes = hayRes
-    ? `<div class="resline"><b>Ventas</b> ${has(f.RES_VENTAS) ? esc(f.RES_VENTAS) : '—'}
-         <span class="gion">—</span> <b>BPA</b> ${has(f.RES_BPA) ? esc(f.RES_BPA) : '—'}</div>
+    ? `<div class="resline"><b>Ventas</b> ${resPct(f.RES_VENTAS)}
+         <span class="gion">—</span> <b>BPA</b> ${resPct(f.RES_BPA)}</div>
        ${has(f.RES_COMENTARIO) ? `<div class="txt">${esc(f.RES_COMENTARIO)}</div>` : ''}`
     : pend('registrar');
 
