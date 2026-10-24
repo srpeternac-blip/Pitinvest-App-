@@ -210,11 +210,14 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 /* Una fila por concepto: etiqueta a la izquierda, contenido a la derecha */
 .fr{display:grid;grid-template-columns:132px minmax(0,1fr);gap:18px;padding:15px 0;border-bottom:1px solid var(--borde2)}
 .fr:last-of-type{border-bottom:0}
-.fr-lab{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;
-  color:var(--pos);padding-top:4px}
+.fr-lab{font-family:var(--disp);font-size:16px;font-weight:600;letter-spacing:.01em;color:var(--pos);padding-top:1px}
 .fr-val{min-width:0}
 .fr-val .txt{font-size:14.5px}
 .sep{color:var(--tenue)}
+.resline{font-family:var(--mono);font-size:14.5px;font-weight:600;margin-bottom:9px}
+.resline b{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--tenue);margin-right:3px}
+.resline .gion{color:var(--tenue);margin:0 7px;font-weight:400}
+.pnivel{font-family:var(--mono);font-size:13px;color:var(--media);margin-left:9px}
 .cifras{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:11px}
 .cifra{display:flex;flex-direction:column;gap:3px;background:var(--banda);border:1px solid var(--borde);
   border-radius:9px;padding:9px 14px;font-family:var(--mono);font-size:17px;font-weight:600}
@@ -1105,21 +1108,18 @@ const POS = [
   [/mantener|manten/i,   'Mantener',  'p-mantener'],
   [/reducir|reduc|eliminar|salir/i, 'Reducir', 'p-reducir']
 ];
-function chipPosicion(txt){
+/* Ampliar y construir llevan al lado el precio al que quiere cargar (entrada 1);
+   reducir, el precio al que quiere recoger (salida). Mantener va solo. */
+function chipPosicion(f){
+  const txt = f.POSICION;
   if(!has(txt)) return '';
   const m = POS.find(([re]) => re.test(txt));
-  return `<span class="pchip ${m ? m[2] : ''}">${esc(m ? m[1] : txt)}</span>`;
-}
-function nivel(label, valor, precio, divisa, tipo){
-  const v = num(valor);
-  if(v == null) return '';
-  const d = distancia(precio, v, tipo);
-  const cls = d && d.cls !== 'far' ? d.cls : '';
-  return `<div class="niv ${cls}">
-    <span class="nlab">${esc(label)}</span>
-    <span class="nval">${fmtNum(v, v>=100?0:2)}${esc(divisa)}</span>
-    <span class="ndist">${esc(d ? d.txt : '')}</span>
-  </div>`;
+  const clave = m ? m[1] : '';
+  const nivel = (clave === 'Ampliar' || clave === 'Construir') ? f.ENTRADA_1
+              : (clave === 'Reducir') ? f.SALIDA : '';
+  const v = num(nivel), div = divisaDe(f.SIMBOLO_GF);
+  return `<span class="pchip ${m ? m[2] : ''}">${esc(m ? clave : txt)}</span>` +
+    (v != null ? `<span class="pnivel">en ${fmtNum(v, v>=100?0:2)}${esc(div)}</span>` : '');
 }
 const bloque = (label, txt, dim) => `<h4 class="sec">${esc(label)}</h4>` +
   (has(txt) ? `<div class="txt${dim?' dim':''}">${esc(txt)}</div>` : '<div class="nd">Sin datos.</div>');
@@ -1139,23 +1139,19 @@ function abrir(tk, mantenerScroll){
   const hist = historial.filter(h => (h.TICKER || '').toUpperCase() === tk)
     .sort((a,b) => String(b.FECHA).localeCompare(String(a.FECHA)));   // lo más reciente arriba
 
-  const niveles = [
-    nivel('Entrada 1', f.ENTRADA_1, precio, div, 'entrada'),
-    nivel('Entrada 2', f.ENTRADA_2, precio, div, 'entrada'),
-    nivel('Salida',    f.SALIDA,    precio, div, 'salida')
-  ].join('');
-
   // Ganancia: solo si la tiene en cartera y el Sheet la ha traído del SWING 2026
-  const pl = plPct == null ? '' : `<span class="pl ${plPct >= 0 ? 'pos' : 'neg'}">${pctSig(plPct)}${
-      plImp != null ? ` <em>(${plImp > 0 ? '+' : ''}${fmtNum(plImp, 0)}${esc(div || '$')})</em>` : ''}</span>`;
+  /* El importe viene de la columna P&L del SWING 2026, que está en dólares
+     aunque la acción cotice en otra divisa. Se etiqueta como lo que es. */
+  const pl = plPct == null ? '' : `<span class="pl ${plPct >= 0 ? 'pos' : 'neg'}"
+      title="Ganancia según el SWING 2026, en dólares">${pctSig(plPct)}${
+      plImp != null ? ` <em>(${plImp > 0 ? '+' : ''}${fmtNum(plImp, 0)} $)</em>` : ''}</span>`;
 
-  const bloqueRes = (has(f.RES_BPA) || has(f.RES_VENTAS) || has(f.RES_COMENTARIO))
-    ? `<div class="cifras">
-         ${has(f.RES_BPA) ? `<span class="cifra"><b>BPA</b>${esc(f.RES_BPA)}</span>` : ''}
-         ${has(f.RES_VENTAS) ? `<span class="cifra"><b>Ventas</b>${esc(f.RES_VENTAS)}</span>` : ''}
-       </div>
-       ${has(f.RES_COMENTARIO) ? `<div class="txt dim">${esc(f.RES_COMENTARIO)}</div>` : ''}`
-    : '<div class="nd">Sin resultados anotados.</div>';
+  const hayRes = has(f.RES_BPA) || has(f.RES_VENTAS) || has(f.RES_COMENTARIO);
+  const bloqueRes = hayRes
+    ? `<div class="resline"><b>Ventas</b> ${has(f.RES_VENTAS) ? esc(f.RES_VENTAS) : '—'}
+         <span class="gion">—</span> <b>BPA</b> ${has(f.RES_BPA) ? esc(f.RES_BPA) : '—'}</div>
+       ${has(f.RES_COMENTARIO) ? `<div class="txt">${esc(f.RES_COMENTARIO)}</div>` : ''}`
+    : '<div class="nd">—</div>';
 
   // Una fila por concepto, con su etiqueta a la izquierda, como en su dibujo
   const fila = (lab, cuerpo) => `<div class="fr"><div class="fr-lab">${esc(lab)}</div><div class="fr-val">${cuerpo}</div></div>`;
@@ -1181,14 +1177,13 @@ function abrir(tk, mantenerScroll){
       ${fila('Descripción', texto(f.DESCRIPCION))}
       ${fila('Sector', sector ? `<div class="txt">${sector}</div>` : '<div class="nd">—</div>')}
       ${fila('Cartera', has(f.CARTERA) ? `<div class="txt">${esc(f.CARTERA)}</div>` : '<div class="nd">—</div>')}
-      ${fila('Posición', chipPosicion(f.POSICION) || '<div class="nd">—</div>')}
+      ${fila('Posición', chipPosicion(f) || '<div class="nd">—</div>')}
       ${fila('Resultados', bloqueRes)}
       ${fila('Próximos', (has(f.PROX_RESULTADOS) ? `<div class="txt">${esc(f.PROX_RESULTADOS)}</div>` : '<div class="nd">—</div>') +
           (has(f.QUE_VIGILAR) ? `<div class="vigilar"><b>Qué vigilar</b>${esc(f.QUE_VIGILAR)}</div>` : ''))}
-      ${fila('Tesis', (has(f.TESIS_PITI) ? `<div class="txt">${esc(f.TESIS_PITI)}</div>` : '') +
-          (has(f.TESIS_IA) ? `<div class="tesis ia"><b>La de la IA</b><div class="txt dim">${esc(f.TESIS_IA)}</div></div>` : '') +
-          (!has(f.TESIS_PITI) && !has(f.TESIS_IA) ? '<div class="nd">—</div>' : ''))}
-      ${fila('Plan de acción', texto(f.PLAN_ACCION) + (niveles ? `<div class="niveles">${niveles}</div>` : ''))}
+      ${fila('Tesis', texto(f.TESIS_PITI))}
+      ${fila('Tesis de la IA', texto(f.TESIS_IA))}
+      ${fila('Plan de acción', texto(f.PLAN_ACCION))}
       <div class="foot">Actualizada: ${has(f.ACTUALIZADO) ? esc(f.ACTUALIZADO) : '—'}</div>
     </div>
 
