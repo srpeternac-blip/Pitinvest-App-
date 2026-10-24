@@ -186,6 +186,14 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 
 /* ---------- Ficha ---------- */
 .detail{padding:22px 24px 70px;max-width:900px}
+/* Ficha a la izquierda y fundamental a la derecha. El panel se abre y se cierra
+   con el mismo botón Fundamental; mientras está cerrado la ficha ocupa todo. */
+.fsplit{display:flex;align-items:flex-start}
+.fsplit .detail{flex:1 1 auto;min-width:0}
+.fsplit.abierto .detail{max-width:none}
+.fund{flex:0 0 46%;min-width:0;align-self:stretch;padding:22px 22px 70px;
+  border-left:1px solid var(--borde);background:rgba(18,17,32,.45)}
+.fund .dhead{margin-top:0!important}
 .dhead{border-bottom:1px solid var(--borde);padding-bottom:16px;margin-bottom:4px}
 .dname{font-family:var(--disp);font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.08}
 .dtick{font-family:var(--mono);font-size:15px;color:var(--pos);margin-left:10px}
@@ -222,6 +230,10 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .resline .gion{color:var(--tenue);margin:0 7px;font-weight:400}
 /* Un porcentaje que llegó sin el signo de % : puede estar mal en el Sheet */
 .dudoso{color:var(--pos);border-bottom:1px dotted var(--pos);cursor:help}
+/* Fecha de resultados sacada del calendario, no del anuncio de la compañía */
+.sinconf{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--pos);border:1px solid rgba(247,184,60,.45);
+  border-radius:5px;padding:2px 6px;margin-left:7px;white-space:nowrap;cursor:help}
 .pnivel{font-family:var(--mono);font-size:13px;color:var(--media);margin-left:9px}
 .cifras{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:11px}
 .cifra{display:flex;flex-direction:column;gap:3px;background:var(--banda);border:1px solid var(--borde);
@@ -247,6 +259,8 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .btn-mini{background:var(--banda);border:1px solid var(--borde);color:var(--media);border-radius:9px;font-size:13.5px;padding:8px 13px}
 .btn-mini:hover{color:var(--tinta);border-color:#43406d}
 .btn{background:linear-gradient(90deg,var(--pos),var(--naranja));color:#140f05;border:0;border-radius:10px;font-weight:700;font-size:14.5px;padding:0 20px}
+/* Fundamental pulsado: el panel de la derecha está abierto */
+.btn.on{background:none;color:var(--pos);box-shadow:inset 0 0 0 1px var(--pos)}
 .btn:hover{filter:brightness(1.08)} .btn:disabled{opacity:.5;cursor:wait}
 
 .tabs{display:flex;gap:7px;margin:20px 0 0}
@@ -350,6 +364,9 @@ h4.sec:first-child{margin-top:0}
   .fr{grid-template-columns:1fr;gap:7px;padding:13px 0}
   .fr-lab{padding-top:0}
   .dtop .btn{margin-left:0}
+  /* En móvil no hay sitio para dos columnas: el fundamental va debajo */
+  .fsplit{flex-direction:column}
+  .fund{flex:1 1 auto;width:100%;border-left:0;border-top:1px solid var(--borde);padding:16px 15px 70px}
   .wknav{margin-left:0;width:100%}
   .brand{font-size:18px}
 }
@@ -370,7 +387,7 @@ h4.sec:first-child{margin-top:0}
       <button class="nv on" data-view="agenda"><span class="mk"></span>Agenda del día</button>
       <button class="nv" data-view="cal"><span class="mk"></span>Calendario</button>
       <button class="nv" data-view="macro"><span class="mk"></span>Macro</button>
-      <button class="nv" data-view="analisis"><span class="mk"></span>Valoración</button>
+      <button class="nv" data-view="analisis"><span class="mk"></span>Analizar</button>
       <button class="nv" data-view="tareas"><span class="mk"></span>Tareas pendientes</button>
       <div class="nv-sep"></div>
       <button class="nv" data-view="fichas"><span class="mk"></span>Fichas</button>
@@ -396,15 +413,21 @@ h4.sec:first-child{margin-top:0}
     <section class="view" id="view-tareas"><div class="wrap" id="tareas"></div></section>
 
     <section class="view" id="view-fichas">
-      <main class="detail" id="detail">
-        <div class="ph"><div class="big">Fichas</div><div>Elige una empresa de la lista.</div></div>
-      </main>
+      <div class="fsplit" id="fsplit">
+        <main class="detail" id="detail">
+          <div class="ph"><div class="big">Fichas</div><div>Elige una empresa de la lista.</div></div>
+        </main>
+        <aside class="fund" id="fund" hidden>
+          <div class="notice" id="pNotice"></div>
+          <div id="pOut"></div>
+        </aside>
+      </div>
     </section>
 
     <section class="view" id="view-analisis">
       <div class="wrap">
         <div class="espectro"></div>
-        <div class="scr-h"><div><h1>Valoración</h1><span class="rango">Fundamental en vivo · criba Dito</span></div></div>
+        <div class="scr-h"><div><h1>Analizar</h1><span class="rango">Para empresas que no tienes en cartera ni en watchlist. Las que sí, llevan su fundamental en la ficha</span></div></div>
         <div class="search" style="max-width:560px">
           <span class="mag">⌕</span>
           <input id="aq" placeholder="Ticker o nombre (ej. NVDA, Hermes, Rollins)" autocomplete="off" spellcheck="false">
@@ -1249,10 +1272,49 @@ function chipPosicion(f){
 const bloque = (label, txt, dim) => `<h4 class="sec">${esc(label)}</h4>` +
   (has(txt) ? `<div class="txt${dim?' dim':''}">${esc(txt)}</div>` : '<div class="nd">Sin datos.</div>');
 
+/* La fecha del próximo trimestre. Si Resultados la ha escrito en el Sheet manda
+   esa, porque la ha verificado contra la compañía. Si no, se usa la que la app
+   ya tiene del calendario y se marca «sin confirmar»: un calendario genérico no
+   es la fuente de la compañía, y en europeas que publican tras su cierre la
+   reacción es al día siguiente. */
+function proxResultados(f){
+  if(has(f.PROX_RESULTADOS)) return {txt: f.PROX_RESULTADOS, confirmada: true};
+  const tk = String(f.TICKER || '').toUpperCase(), hoy = hoyISO();
+  const cand = new Set(misFechas[tk] || []);
+  Object.keys(resultados).forEach(iso => {
+    const lista = resultados[iso];
+    if(Array.isArray(lista) && lista.some(x => String(x.ticker || '').toUpperCase() === tk)) cand.add(iso);
+  });
+  const futuras = [...cand].filter(iso => iso && iso >= hoy).sort();
+  if(!futuras.length) return null;
+  return {txt: fmtLargo(fechaDe(futuras[0])), confirmada: false};
+}
+
+/* El panel de la derecha. Se abre y se cierra con el mismo botón Fundamental. */
+let fundAbierto = null;
+function cerrarFund(){
+  fundAbierto = null;
+  $('#fund').hidden = true;
+  $('#fsplit').classList.remove('abierto');
+  $('#pOut').innerHTML = '';
+  $('#pNotice').className = 'notice';
+  $('#pNotice').innerHTML = '';
+}
+function alternarFund(sym){
+  if(fundAbierto === sym){ cerrarFund(); if(sel) abrir(sel, true); return; }
+  fundAbierto = sym;
+  $('#fund').hidden = false;
+  $('#fsplit').classList.add('abierto');
+  if(sel) abrir(sel, true);          // repinta el botón como pulsado
+  analizar(sym, 'panel');
+}
+
 function abrir(tk, mantenerScroll){
   tk = String(tk).toUpperCase();
   const f = fichas.find(x => x.TICKER.toUpperCase() === tk);
   if(!f) return;
+  // Si estaba abierto el fundamental de otra empresa, se cierra: no se arrastra
+  if(fundAbierto && sel && sel !== tk) cerrarFund();
   sel = tk;
   if(location.hash.replace('#','') !== f.TICKER) history.replaceState(null, '', '#' + f.TICKER);
   pintarLista();
@@ -1292,13 +1354,47 @@ function abrir(tk, mantenerScroll){
   // Una fila por concepto, con su etiqueta a la izquierda, como en su dibujo
   const sector = [f.SECTOR, f.SUBSECTOR].filter(has).map(esc).join(' <span class="sep">·</span> ');
 
+  /* En cartera no se repite en qué cartera está: ya lo sabe. Posición y plan de
+     acción van juntos en una sola fila, Plan. En watchlist sí interesa la
+     cartera de destino, y en vez de posición (siempre construir) va el nivel
+     de entrada; ahí no hay plan de acción. */
+  const esWatch = est === 'watchlist';
+  const niveles = [f.ENTRADA_1, f.ENTRADA_2].filter(has).map(n => esc(String(n).trim()) + div);
+  const hayPlan = has(f.POSICION) || has(f.PLAN_ACCION);
+  const bloquePlan = hayPlan
+    ? (chipPosicion(f) || '') + (has(f.PLAN_ACCION) ? `<div class="txt">${esc(f.PLAN_ACCION)}</div>` : '')
+    : pend('decidir');
+  const prox = proxResultados(f);
+  const bloqueProx = prox
+    ? `<div class="txt">${esc(prox.txt)}${prox.confirmada ? ''
+        : ' <span class="sinconf" title="Fecha sacada del calendario de resultados, no del anuncio de la compañía. Cuando Resultados la verifique y la escriba en el Sheet, saldrá limpia.">sin confirmar</span>'}</div>`
+    : pend('registrar');
+
+  const comunes = [
+    fila('Tesis', texto(f.TESIS_PITI, 'escribir')),
+    fila('Tesis de la IA', texto(f.TESIS_IA, 'analizar')),
+    fila('Qué vigilar', texto(f.QUE_VIGILAR, 'analizar')),
+    fila('Resultados', bloqueRes),
+    fila('Próximos', bloqueProx)
+  ];
+  const filasGen = [
+    fila('Descripción', texto(f.DESCRIPCION, 'describir')),
+    fila('Sector', sector ? `<div class="txt">${sector}</div>` : pend('clasificar')),
+    esWatch ? fila('Cartera', has(f.CARTERA) ? `<div class="txt">${esc(f.CARTERA)}</div>` : pend('asignar')) : '',
+    esWatch ? fila('Entrada', niveles.length ? `<div class="txt">${niveles.join(' <span class="sep">·</span> luego ')}</div>` : pend('decidir'))
+            : fila('Plan', bloquePlan),
+    ...comunes
+  ].join('');
+
+  const sym = yahooDe(f.SIMBOLO_GF, f.TICKER);
+
   $('#detail').innerHTML = `
     <div class="espectro"></div>
     <div class="dhead">
       <div class="dtop">
         <div class="dname">${esc(f.NOMBRE || f.TICKER)}<span class="dtick">${esc(f.TICKER)}</span></div>
         ${pl}
-        <button class="btn" data-val="${esc(yahooDe(f.SIMBOLO_GF, f.TICKER))}">Analizar</button>
+        <button class="btn ${fundAbierto === sym ? 'on' : ''}" data-fund="${esc(sym)}">Fundamental</button>
       </div>
     </div>
 
@@ -1308,16 +1404,7 @@ function abrir(tk, mantenerScroll){
     </div>
 
     <div class="pane" id="pane-gen">
-      ${fila('Descripción', texto(f.DESCRIPCION, 'describir'))}
-      ${fila('Sector', sector ? `<div class="txt">${sector}</div>` : pend('clasificar'))}
-      ${fila('Cartera', has(f.CARTERA) ? `<div class="txt">${esc(f.CARTERA)}</div>` : pend('asignar'))}
-      ${fila('Posición', chipPosicion(f) || pend('decidir'))}
-      ${fila('Resultados', bloqueRes)}
-      ${fila('Próximos', (has(f.PROX_RESULTADOS) ? `<div class="txt">${esc(f.PROX_RESULTADOS)}</div>` : pend('registrar')) +
-          (has(f.QUE_VIGILAR) ? `<div class="vigilar"><b>Qué vigilar</b>${esc(f.QUE_VIGILAR)}</div>` : ''))}
-      ${fila('Tesis', texto(f.TESIS_PITI, 'escribir'))}
-      ${fila('Tesis de la IA', texto(f.TESIS_IA, 'analizar'))}
-      ${fila('Plan de acción', texto(f.PLAN_ACCION, 'decidir'))}
+      ${filasGen}
       <div class="foot">Actualizada: ${has(f.ACTUALIZADO) ? esc(f.ACTUALIZADO) : '—'}</div>
     </div>
 
@@ -1416,7 +1503,11 @@ function descES(el, resumen){
 }
 
 let aCtx = null;
-const aviso = (tipo, html) => { const n = $('#aNotice'); n.className = 'notice ' + (tipo||''); n.innerHTML = html || ''; };
+/* El mismo análisis se pinta en dos sitios: la pantalla Analizar y el panel
+   derecho de una ficha. En vez de duplicarlo, se cambia el destino. */
+let AOUT = '#aOut', ANOTICE = '#aNotice';
+const enPanel = () => AOUT === '#pOut';
+const aviso = (tipo, html) => { const n = $(ANOTICE); n.className = 'notice ' + (tipo||''); n.innerHTML = html || ''; };
 
 async function buscarA(){
   const term = $('#aq').value.trim();
@@ -1444,14 +1535,16 @@ async function buscarA(){
   }finally{ b.disabled = false; b.textContent = 'Analizar'; }
 }
 
-async function analizar(t){
+async function analizar(t, destino){
   t = String(t).toUpperCase();
-  irA('analisis');
-  $('#aq').value = t;
+  AOUT = destino === 'panel' ? '#pOut' : '#aOut';
+  ANOTICE = destino === 'panel' ? '#pNotice' : '#aNotice';
+  if(!enPanel()){ irA('analisis'); $('#aq').value = t; }
   if(!workerUrl){ abrirModal(); return; }
-  const b = $('#aGo'); b.disabled = true; b.innerHTML = '<span class="spin"></span>';
-  aviso('',''); $('#aCands').innerHTML = '';
-  $('#aOut').innerHTML = '<div class="card"><div class="card-cuerpo"><span class="spin"></span> Leyendo fundamentales de ' + esc(t) + '…</div></div>';
+  const b = enPanel() ? null : $('#aGo');
+  if(b){ b.disabled = true; b.innerHTML = '<span class="spin"></span>'; }
+  aviso(''); if(!enPanel()) $('#aCands').innerHTML = '';
+  $(AOUT).innerHTML = '<div class="card"><div class="card-cuerpo"><span class="spin"></span> Leyendo fundamentales de ' + esc(t) + '…</div></div>';
   try{
     const [j, tsJ] = await Promise.all([
       api('/summary/' + encodeURIComponent(t) + '?modules=assetProfile,price,summaryDetail,defaultKeyStatistics,financialData,incomeStatementHistory,incomeStatementHistoryQuarterly,cashflowStatementHistory,cashflowStatementHistoryQuarterly'),
@@ -1462,10 +1555,10 @@ async function analizar(t){
     prepararA(t, m, tsJ);
     renderA();
   }catch(e){
-    $('#aOut').innerHTML = '';
+    $(AOUT).innerHTML = '';
     if(String(e.message) === 'SIN_WORKER') abrirModal();
     else aviso('err','No se pudo analizar <b>'+esc(t)+'</b> — ' + esc(e.message));
-  }finally{ b.disabled = false; b.textContent = 'Analizar'; }
+  }finally{ if(b){ b.disabled = false; b.textContent = 'Analizar'; } }
 }
 
 function prepararA(t, m, tsJ){
@@ -1575,7 +1668,7 @@ function renderA(){
   const nDeuda = c.cobertura != null ? 9 : 8;
   const sinDatos = c.perFwd==null && c.evEbitda==null && c.cap==null && !c.revA && !c.revQ.length;
 
-  $('#aOut').innerHTML = `
+  $(AOUT).innerHTML = `
     <div class="dhead" style="margin-top:20px">
       <div class="dname">${esc(c.nombre)}<span class="dtick">${esc(t)}</span></div>
       <div class="dchips">
@@ -1586,7 +1679,7 @@ function renderA(){
         <span class="q-price">${c.precio != null ? fmtNum(c.precio,2) : '—'}</span>
         ${c.chg != null ? `<span class="q-per" style="color:${c.chg>=0?'var(--verde)':'var(--alarma)'}">${pctSig(c.chg)}</span>` : ''}
       </div>
-      <div class="desc" id="aDesc"></div>
+      <div class="desc"></div>
     </div>
     ${sinDatos ? '<div class="err">Este listado apenas publica fundamentales: suele ser una cotización secundaria. Busca el listado principal.</div>' : ''}
     <div class="pane" style="border-radius:14px;margin-top:16px">
@@ -1596,8 +1689,8 @@ function renderA(){
       <h4 class="sec">Retribución al accionista</h4>${filas.slice(nDeuda).join('')}
       <div class="foot">Datos de Yahoo Finance vía tu worker. Dato no verificado contra la fuente original: para una tesis, confirma las cifras en el informe de la compañía.</div>
     </div>`;
-  descES($('#aDesc'), c.resumen);
-  $('#aOut').scrollIntoView({behavior:'smooth', block:'start'});
+  descES($(AOUT).querySelector('.desc'), c.resumen);
+  if(!enPanel()) $(AOUT).scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 /* ═══════════ Ajustes ═══════════ */
@@ -1658,8 +1751,8 @@ $('#list').addEventListener('click', e => {
   const b = e.target.closest('[data-tk]'); if(b) abrir(b.dataset.tk);
 });
 $('#detail').addEventListener('click', e => {
-  const v = e.target.closest('[data-val]');
-  if(v){ analizar(v.dataset.val); return; }
+  const v = e.target.closest('[data-fund]');
+  if(v){ alternarFund(v.dataset.fund); return; }
   const t = e.target.closest('[data-pane]'); if(!t) return;
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
   $('#pane-gen').hidden = t.dataset.pane !== 'gen';
