@@ -1350,6 +1350,27 @@ function chipPosicion(f){
   const m = POS.find(([re]) => re.test(txt));
   return `<span class="pchip ${m ? m[2] : ''}">${esc(m ? m[1] : txt)}</span>`;
 }
+/* La tesis de la IA empieza con su veredicto sobre la tesis de Piti:
+   «✓ DE ACUERDO:», «✗ EN DESACUERDO:» o «~ CON MATICES:». Se pinta como chip
+   de color (verde, rojo, ámbar) y el resto va como texto normal. Si no lleva
+   etiqueta, sale el texto tal cual. */
+const VEREDICTOS = [
+  [/^\s*(?:[✗✘❌]\s*(?:EN\s+DESACUERDO)?|X\s+EN\s+DESACUERDO|EN\s+DESACUERDO)\s*:?\s*/i, 'En desacuerdo', 'p-salir'],
+  [/^\s*(?:~\s*(?:CON\s+MATICES)?|CON\s+MATICES)\s*:?\s*/i,                             'Con matices',   'p-valorando'],
+  [/^\s*(?:[✓✔✅]\s*(?:DE\s+ACUERDO)?|DE\s+ACUERDO)\s*:?\s*/i,                         'De acuerdo',    'p-completa']
+];
+function tesisIA(t){
+  if(!has(t)) return `<div class="pend">Pendiente de analizar</div>`;
+  const s = String(t);
+  for(const [re, lab, cls] of VEREDICTOS){
+    const m = s.match(re);
+    if(m && m[0].trim()){
+      const resto = s.slice(m[0].length).trim();
+      return `<span class="pchip ${cls}">${lab}</span>` + (resto ? `<div class="txt" style="margin-top:8px">${esc(resto)}</div>` : '');
+    }
+  }
+  return `<div class="txt">${esc(s)}</div>`;
+}
 /* Los niveles van con el plan de acción, que es donde decide a qué precio
    entra o sale. Se pintan tal y como están escritos: si puso 25, sale 25. */
 function nivelesPlan(f){
@@ -1500,7 +1521,7 @@ function abrir(tk, mantenerScroll){
   const comunes = [
     // La tesis es por qué la compró, no qué hacer con ella: eso es el plan
     fila('Tesis', texto(f.TESIS_PITI, 'escribir: por qué la quieres en cartera')),
-    fila('Tesis de la IA', texto(f.TESIS_IA, 'analizar')),
+    fila('Tesis de la IA', tesisIA(f.TESIS_IA)),
     fila('Resultados', bloqueRes),
     fila('Próximos', bloqueProx +
       (has(f.QUE_VIGILAR) ? `<div class="vigilar"><b>Qué vigilar</b>${esc(f.QUE_VIGILAR)}</div>` : ''))
