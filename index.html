@@ -214,10 +214,10 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .dtop .btn{margin-left:auto;height:38px;font-size:13.5px;letter-spacing:.04em}
 .pchip{font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;
   text-transform:uppercase;letter-spacing:.07em;border:1px solid var(--borde);color:var(--media);background:var(--banda)}
-.p-construir{color:var(--watch);border-color:rgba(111,180,255,.5);background:rgba(111,180,255,.12)}
-.p-ampliar{color:var(--verde);border-color:rgba(74,222,128,.5);background:rgba(74,222,128,.12)}
-.p-mantener{color:var(--pos);border-color:rgba(247,184,60,.5);background:rgba(247,184,60,.12)}
-.p-reducir{color:var(--alarma);border-color:rgba(255,95,77,.5);background:rgba(255,95,77,.12)}
+.p-construccion{color:var(--watch);border-color:rgba(111,180,255,.5);background:rgba(111,180,255,.12)}
+.p-completa{color:var(--verde);border-color:rgba(74,222,128,.5);background:rgba(74,222,128,.12)}
+.p-valorando{color:var(--pos);border-color:rgba(247,184,60,.5);background:rgba(247,184,60,.12)}
+.p-salir{color:var(--alarma);border-color:rgba(255,95,77,.5);background:rgba(255,95,77,.12)}
 /* Una fila por concepto: etiqueta a la izquierda, contenido a la derecha */
 .fr{display:grid;grid-template-columns:132px minmax(0,1fr);gap:18px;padding:15px 0;border-bottom:1px solid var(--borde2)}
 .fr:last-of-type{border-bottom:0}
@@ -1332,13 +1332,17 @@ function pintarLista(){
 /* Posición dice CÓMO está la posición, nada más: ni precios ni qué hacer.
    En construcción  — abierta pero con poco peso, quiere seguir cargando.
    Completa         — ya tiene dentro todo el capital que quería meterle.
+   Valorando        — no lo tiene decidido: según caiga ampliará, o la soltará
+                      si necesita el dinero. Está en el aire, a propósito.
    Lista para salir — a punto de soltarla.
-   Lista abierta: si alguien escribe otra cosa se muestra tal cual, sin color,
-   en vez de romperse o de inventarse un estado. */
+   «Valorando» va primero porque si alguien escribe «valorando si salir» debe
+   ganar ese estado y no el de salida. Lista abierta: si escribe otra cosa se
+   muestra tal cual, sin color, en vez de romperse o inventarse un estado. */
 const POS = [
-  [/construcc|construir|constru/i,          'En construcción',  'p-construir'],
-  [/completa|completo|complet/i,            'Completa',         'p-mantener'],
-  [/salir|salida|reducir|reduc|eliminar/i,  'Lista para salir', 'p-reducir']
+  [/valorand|valoraci|valorar/i,            'Valorando',        'p-valorando'],
+  [/construcc|construir|constru/i,          'En construcción',  'p-construccion'],
+  [/completa|completo|complet/i,            'Completa',         'p-completa'],
+  [/salir|salida|reducir|reduc|eliminar/i,  'Lista para salir', 'p-salir']
 ];
 function chipPosicion(f){
   const txt = f.POSICION;
