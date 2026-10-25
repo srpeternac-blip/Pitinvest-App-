@@ -56,7 +56,7 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .nv.on .mk{background:var(--pos)}
 .nv-sep{height:1px;background:var(--borde);margin:9px 12px;flex:none}
 
-.fpanel{display:none;flex-direction:column;min-height:0;flex:1;margin-top:9px}
+.fpanel{display:none;flex-direction:column;min-height:0;flex:none;margin-top:6px}
 .fpanel.on{display:flex}
 .fp-top{padding:0 11px 9px;display:flex;flex-direction:column;gap:8px;flex:none}
 .search{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--borde);border-radius:10px;padding:0 11px}
@@ -64,11 +64,21 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .search input::placeholder{font-family:var(--sans);color:var(--tenue)}
 .search .mag{color:var(--tenue)}
 .search .clr{color:var(--tenue);font-size:18px;padding:4px}
-.filters{display:flex;flex-wrap:wrap;gap:5px}
+/* Las carteras van como submenú de «Fichas», una debajo de otra */
+.filters{display:flex;flex-direction:column;gap:2px}
+.fsub{display:flex;align-items:center;width:100%;text-align:left;padding:7px 12px 7px 25px;border-radius:8px;
+  color:var(--media);font-size:13.5px}
+.fsub:hover{background:var(--panel);color:var(--tinta)}
+.fsub.on{background:var(--alto);color:var(--pos);font-weight:700}
+/* La lista de empresas, en su propia columna al lado del menú. Una línea por
+   empresa para que quepan casi todas sin scroll; el nombre sale al pasar el ratón */
+.flista{flex:0 0 196px;align-self:flex-start;position:sticky;top:var(--hdr);height:calc(100vh - var(--hdr));
+  display:flex;flex-direction:column;border-right:1px solid var(--borde);background:var(--banda)}
+.flista .list{border-top:0}
 .fchip{border:1px solid var(--borde);border-radius:999px;padding:4px 11px;font-size:12.5px;color:var(--media);background:var(--panel);white-space:nowrap}
 .fchip.on{color:#140f05;background:var(--pos);border-color:var(--pos);font-weight:700}
 .list{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;border-top:1px solid var(--borde2)}
-.litem{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:10px 13px;
+.litem{display:flex;align-items:center;gap:7px;width:100%;text-align:left;padding:6px 10px;
   border-bottom:1px solid rgba(43,42,71,.55);border-left:2px solid transparent}
 .litem:hover{background:var(--panel)}
 .litem.sel{background:var(--alto);border-left-color:var(--pos)}
@@ -79,7 +89,7 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .lname{font-size:12px;color:var(--tenue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lprice{font-family:var(--mono);font-size:12.5px;color:var(--media);text-align:right;flex:none}
 .lright{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex:none}
-.lpl{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:-.01em}
+.lpl{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:-.01em;flex:none;min-width:44px;text-align:right}
 .lpl.pos{color:var(--verde)} .lpl.neg{color:var(--alarma)}
 .lempty{padding:22px 14px;color:var(--tenue);font-size:13.5px;text-align:center}
 
@@ -191,7 +201,7 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .fsplit{display:flex;align-items:flex-start}
 .fsplit .detail{flex:1 1 auto;min-width:0}
 .fsplit.abierto .detail{max-width:none}
-.fund{flex:0 0 46%;min-width:0;align-self:stretch;padding:22px 22px 70px;
+.fund{flex:0 0 40%;min-width:0;align-self:stretch;padding:22px 22px 70px;
   border-left:1px solid var(--borde);background:rgba(18,17,32,.45)}
 .fund .dhead{margin-top:0!important}
 .dhead{border-bottom:1px solid var(--borde);padding-bottom:16px;margin-bottom:4px}
@@ -359,7 +369,6 @@ h4.sec:first-child{margin-top:0}
   .fpanel{margin-top:0;border-top:1px solid var(--borde2)}
   .fpanel.on{display:none}
   body.movil-fichas .fpanel.on{display:flex}
-  .list{max-height:none;overflow:visible}
   .wrap{padding:16px 14px 70px}
   .semana{grid-template-columns:1fr}
   .detail{padding:16px 15px 70px}
@@ -372,6 +381,10 @@ h4.sec:first-child{margin-top:0}
   .dtop .btn{margin-left:0}
   /* En móvil no hay sitio para dos columnas: el fundamental va debajo */
   .fsplit{flex-direction:column}
+  .flista{position:static;height:auto;flex:none;width:100%;border-right:0;border-bottom:1px solid var(--borde)}
+  .flista .list{max-height:42vh;overflow-y:auto}
+  .filters{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .fsub{width:auto;white-space:nowrap;padding:7px 12px}
   .fund{flex:1 1 auto;width:100%;border-left:0;border-top:1px solid var(--borde);padding:16px 15px 70px}
   .wknav{margin-left:0;width:100%}
   .brand{font-size:18px}
@@ -408,7 +421,6 @@ h4.sec:first-child{margin-top:0}
         </div>
         <div class="filters" id="fEstado"></div>
       </div>
-      <div class="list" id="list"><div class="lempty"><span class="spin"></span></div></div>
     </div>
   </nav>
 
@@ -420,6 +432,9 @@ h4.sec:first-child{margin-top:0}
 
     <section class="view" id="view-fichas">
       <div class="fsplit" id="fsplit">
+        <aside class="flista">
+          <div class="list" id="list"><div class="lempty"><span class="spin"></span></div></div>
+        </aside>
         <main class="detail" id="detail">
           <div class="ph"><div class="big">Fichas</div><div>Elige una empresa de la lista.</div></div>
         </main>
@@ -1284,11 +1299,11 @@ function pintarMacro(){
    en dos carteras ("QF y OPCIONES") aparece en las dos. */
 const ESTADOS = [
   ['todas',     'Todas',     () => true],
-  ['swing',     'Swing',     f => enCartera(f, 'SWING')],
+  ['watchlist', 'Watchlist', f => (f.ESTADO || '').toLowerCase() === 'watchlist'],
   ['core',      'Core',      f => enCartera(f, 'CORE')],
+  ['swing',     'Swing',     f => enCartera(f, 'SWING')],
   ['opciones',  'Opciones',  f => enCartera(f, 'OPCIONES')],
-  ['qf',        'QF',        f => enCartera(f, 'QF')],
-  ['watchlist', 'Watchlist', f => (f.ESTADO || '').toLowerCase() === 'watchlist']
+  ['qf',        'QF',        f => enCartera(f, 'QF')]
 ];
 function enCartera(f, clave){
   return (f.ESTADO || '').toLowerCase() === 'cartera'
@@ -1296,7 +1311,7 @@ function enCartera(f, clave){
 }
 function pintarFiltros(){
   $('#fEstado').innerHTML = ESTADOS.map(([v,l]) =>
-    `<button class="fchip ${filtroEstado===v?'on':''}" data-est="${v}">${l}</button>`).join('');
+    `<button class="fsub ${filtroEstado===v?'on':''}" data-est="${v}">${l}</button>`).join('');
 }
 function visibles(){
   const q = query.trim().toLowerCase();
@@ -1305,7 +1320,7 @@ function visibles(){
     if(!pasa(f)) return false;
     if(q && !((f.TICKER + ' ' + f.NOMBRE + ' ' + f.SECTOR).toLowerCase().includes(q))) return false;
     return true;
-  }).sort((a,b) => (a.NOMBRE || a.TICKER).localeCompare(b.NOMBRE || b.TICKER, 'es'));
+  }).sort((a,b) => String(a.TICKER).localeCompare(String(b.TICKER), 'es'))   // la lista enseña tickers: se ordena por ticker;
 }
 function pintarLista(){
   const list = visibles();
@@ -1314,14 +1329,11 @@ function pintarLista(){
     const p = num(f.PRECIO);
     const pl = fraccion(f.PL_PCT);   // del SWING 2026; vacío si no la tiene comprada
     const conocido = ['cartera','watchlist','descartada'].includes(est);
-    return `<button class="litem ${sel===f.TICKER.toUpperCase()?'sel':''}" data-tk="${esc(f.TICKER)}">
-      <span class="ldot d-${conocido?est:'otro'}" title="${esc(f.ESTADO||'')}"></span>
-      <span class="lmain"><span class="ltick">${esc(f.TICKER)}</span>
-        <span class="lname">${esc(f.NOMBRE || '')}</span></span>
-      <span class="lright">
-        <span class="lprice">${p!=null ? fmtNum(p, p>=100?0:2) + divisaDe(f.SIMBOLO_GF) : ''}</span>
-        ${pl!=null ? `<span class="lpl ${pl>=0?'pos':'neg'}">${pctSig(pl)}</span>` : ''}
-      </span>
+    return `<button class="litem ${sel===f.TICKER.toUpperCase()?'sel':''}" data-tk="${esc(f.TICKER)}" title="${esc(f.NOMBRE || '')}">
+      <span class="ldot d-${conocido?est:'otro'}"></span>
+      <span class="lmain"><span class="ltick">${esc(f.TICKER)}</span></span>
+      <span class="lprice">${p!=null ? fmtNum(p, p>=100?0:2) + divisaDe(f.SIMBOLO_GF) : ''}</span>
+      <span class="lpl ${pl==null?'':(pl>=0?'pos':'neg')}">${pl!=null ? pctSig(pl) : ''}</span>
     </button>`;
   }).join('') : '<div class="lempty">Nada que coincida.</div>';
 }
