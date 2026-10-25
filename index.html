@@ -89,6 +89,16 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .nl b{font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tenue);min-width:128px}
 .nl span{font-family:var(--mono)}
 .dist{font-weight:700} .dist.d-zona{color:var(--verde)} .dist.d-cerca{color:var(--pos)}
+/* Niveles del plan: uno debajo de otro como submenú, el título en su color */
+.nl2{display:flex;gap:12px;align-items:baseline;padding-left:2px}
+.nl2-t{font-weight:700;font-size:14px;min-width:170px}
+.nl2-v{font-family:var(--mono);font-size:13.5px;color:var(--tinta)}
+.n-aum .nl2-t{color:var(--watch)}
+.n-par .nl2-t{color:#9be3b4}
+.n-tp  .nl2-t{color:var(--verde)}
+.n-int .nl2-t{color:#b794f6}
+/* Titular de resultados */
+.rtit{font-weight:800} .rtit.r-bien{color:var(--verde)} .rtit.r-mal{color:var(--alarma)} .rtit.r-medio{color:var(--pos)}
 .dbtns{display:flex;gap:9px;margin-left:auto}
 .dtop .dbtns .btn{margin-left:0}
 .btn.btn2{display:inline-flex;align-items:center;background:none;color:var(--tinta);box-shadow:inset 0 0 0 1px var(--borde);text-decoration:none}
@@ -1340,6 +1350,15 @@ function pintarFiltros(){
 /* Orden de la lista: alfabético por nombre, o por % de mayor a menor (las
    que no tienen % van al final). Se cambia pulsando la cabecera. */
 let ordenLista = 'az';
+/* El número de la lista: la ganancia si la tiene comprada; si está en
+   watchlist, lo que le falta para llegar a la entrada. */
+const esWatchF = (f) => (f.ESTADO || '').toLowerCase() === 'watchlist';
+function valorLista(f){
+  const pl = fraccion(f.PL_PCT);
+  if(pl != null) return pl;
+  if(esWatchF(f)){ const de = distEntrada(f); return de ? de.d : null; }
+  return null;
+}
 const nombreDe = (f) => String(f.NOMBRE || f.TICKER || '');
 function visibles(){
   const q = query.trim().toLowerCase();
@@ -1350,7 +1369,7 @@ function visibles(){
     if(q && !((f.TICKER + ' ' + f.NOMBRE + ' ' + f.SECTOR).toLowerCase().includes(q))) return false;
     return true;
   }).sort(ordenLista === 'pct'
-    ? (a,b) => { const x = fraccion(a.PL_PCT), y = fraccion(b.PL_PCT);
+    ? (a,b) => { const x = valorLista(a), y = valorLista(b);
         if(x == null && y == null) return az(a,b);
         if(x == null) return 1; if(y == null) return -1;
         return (y - x) || az(a,b); }
@@ -1362,9 +1381,14 @@ function pintarLista(){
   $('#lhead').innerHTML = `<span>${esc(etiqueta)}</span><em>${ordenLista === 'pct' ? '% ↓' : 'A–Z'}</em>`;
   $('#list').innerHTML = list.length ? list.map(f => {
     const pl = fraccion(f.PL_PCT);   // del SWING 2026; vacío si no la tiene comprada
+    const de = pl == null && esWatchF(f) ? distEntrada(f) : null;
+    const num_ = pl != null
+      ? `<span class="lpl ${pl>=0?'pos':'neg'}">${pctSig(pl)}</span>`
+      : de ? `<span class="lpl dist ${de.cls}" title="Distancia a la entrada">${de.txt}</span>`
+      : '<span class="lpl"></span>';
     return `<button class="litem ${sel===f.TICKER.toUpperCase()?'sel':''}" data-tk="${esc(f.TICKER)}" title="${esc(f.TICKER)}">
       <span class="lname">${esc(nombreDe(f))}</span>
-      <span class="lpl ${pl==null?'':(pl>=0?'pos':'neg')}">${pl!=null ? pctSig(pl) : ''}</span>
+      ${num_}
     </button>`;
   }).join('') : '<div class="lempty">Nada que coincida.</div>';
 }
@@ -1425,15 +1449,18 @@ function tesisIA(t){
    beneficio de una parte) · TP (SALIDA, donde sale con toda) · Zona de interés
    (ZONA_INTERES, la que dice vigilar). */
 function nivelesPlan(f){
-  const div = divisaDe(f.SIMBOLO_GF);
+  const div = divisaDe(f.SIMBOLO_GF), p = num(f.PRECIO);
   const v = (x) => esc(String(x).trim()) + esc(div);
-  const linea = (lab, vals) => `<div class="nl"><b>${lab}</b><span>${vals}</span></div>`;
-  const aum = [f.ENTRADA_1, f.ENTRADA_2].filter(has).map(v).join(' <span class="sep">·</span> ');
+  /* Si hay dos niveles para aumentar, primero el más cercano al precio actual */
+  const cerca = (x) => { const z = zonaDe(x); if(!z || p == null) return Infinity;
+    return p > z[1] ? p - z[1] : (p < z[0] ? z[0] - p : 0); };
+  const aum = [f.ENTRADA_1, f.ENTRADA_2].filter(has).sort((a,b) => cerca(a) - cerca(b));
+  const linea = (cls, lab, vals) => `<div class="nl2 ${cls}"><span class="nl2-t">– ${lab}</span><span class="nl2-v">${vals}</span></div>`;
   const out = [];
-  if(aum)                  out.push(linea('Aumentar posición', aum));
-  if(has(f.PARCIAL))       out.push(linea('Parcial', v(f.PARCIAL)));
-  if(has(f.SALIDA))        out.push(linea('TP', v(f.SALIDA)));
-  if(has(f.ZONA_INTERES))  out.push(linea('Zona de interés', v(f.ZONA_INTERES)));
+  if(aum.length)           out.push(linea('n-aum', 'Aumentar posición', aum.map(v).join(' <span class="sep">·</span> ')));
+  if(has(f.PARCIAL))       out.push(linea('n-par', 'Parcial', v(f.PARCIAL)));
+  if(has(f.SALIDA))        out.push(linea('n-tp',  'TP', v(f.SALIDA)));
+  if(has(f.ZONA_INTERES))  out.push(linea('n-int', 'Zona de interés', v(f.ZONA_INTERES)));
   return out.length ? `<div class="niveles">${out.join('')}</div>` : '';
 }
 /* Watchlist: entrada, precio actual y cuánto falta en % hasta la zona de
@@ -1444,6 +1471,39 @@ function zonaDe(txt){
   const ns = (String(txt).match(/\d[\d.]*(?:,\d+)?/g) || []).map(num).filter(n => n != null);
   return ns.length ? [Math.min(...ns), Math.max(...ns)] : null;
 }
+/* El comentario de resultados empieza con un titular que Resultados toma de
+   una lista fija, siempre como primera frase y terminado en punto:
+     Bate expectativas → verde      En línea       → neutro
+     Mixto             → ámbar      Caen márgenes  → ámbar
+     Decepciona        → rojo
+   El titular sale en negrita y en su color; el resto, texto normal. Si algún
+   día llega un titular fuera de la lista, se intenta deducir por palabras. */
+const TITULARES = [
+  [/^bate/i,               'r-bien'],
+  [/^en\s+l[ií]nea/i,      'r-neutro'],
+  [/^mixto/i,              'r-medio'],
+  [/^caen\s+m[aá]rgenes/i, 'r-medio'],
+  [/^decepciona/i,         'r-mal']
+];
+function comentarioRes(t){
+  const s = String(t).trim();
+  const m = s.match(/^([^.:]{2,60})[.:]\s*(.*)$/s);
+  if(!m) return `<div class="txt">${esc(s)}</div>`;
+  const tit = m[1].trim(), resto = m[2];
+  let cls = (TITULARES.find(([re]) => re.test(tit)) || [])[1];
+  if(cls == null){
+    const bien = /\bbat(e|en|ió)\b|supera|mejor de lo esperado/i.test(tit);
+    const mal  = /decepcion|por debajo|peor de lo esperado/i.test(tit);
+    cls = bien && mal ? 'r-medio' : bien ? 'r-bien' : mal ? 'r-mal' : 'r-neutro';
+  }
+  return `<div class="txt"><b class="rtit ${cls}">${esc(tit)}.</b> ${esc(resto)}</div>`;
+}
+function distEntrada(f){
+  const p = num(f.PRECIO), z = zonaDe(f.ENTRADA_1 || f.ENTRADA_2);
+  if(p == null || !z) return null;
+  const d = p > z[1] ? (z[1] - p) / p : 0;   // negativo: lo que tiene que caer
+  return {d, cls: d >= 0 ? 'd-zona' : (-d <= CERCA ? 'd-cerca' : ''), txt: d >= 0 ? 'en zona' : pctSig(d)};
+}
 function bloqueEntrada(f){
   const div = divisaDe(f.SIMBOLO_GF);
   const niveles = [f.ENTRADA_1, f.ENTRADA_2].filter(has).map(n => esc(String(n).trim()) + esc(div));
@@ -1452,11 +1512,8 @@ function bloqueEntrada(f){
   const linea = (lab, val) => `<div class="nl"><b>${lab}</b><span>${val}</span></div>`;
   const out = [linea('Nivel', niveles.join(' <span class="sep">·</span> luego '))];
   if(p != null) out.push(linea('Precio actual', fmtNum(p, p >= 100 ? 0 : 2) + esc(div)));
-  if(p != null && z){
-    const d = p > z[1] ? (z[1] - p) / p : 0;   // negativo: lo que tiene que caer
-    const cls = d >= 0 ? 'd-zona' : (-d <= CERCA ? 'd-cerca' : '');
-    out.push(linea('Distancia', `<span class="dist ${cls}">${d >= 0 ? 'en zona' : pctSig(d)}</span>`));
-  }
+  const de = distEntrada(f);
+  if(de) out.push(linea('Distancia', `<span class="dist ${de.cls}">${de.txt}</span>`));
   return `<div class="niveles">${out.join('')}</div>`;
 }
 const bloque = (label, txt, dim) => `<h4 class="sec">${esc(label)}</h4>` +
@@ -1576,7 +1633,7 @@ function abrir(tk, mantenerScroll){
   const bloqueRes = hayRes
     ? `<div class="resline"><b>Ventas</b> ${resPct(f.RES_VENTAS)}
          <span class="gion">—</span> <b>BPA</b> ${resPct(f.RES_BPA)}</div>
-       ${has(f.RES_COMENTARIO) ? `<div class="txt">${esc(f.RES_COMENTARIO)}</div>` : ''}`
+       ${has(f.RES_COMENTARIO) ? comentarioRes(f.RES_COMENTARIO) : ''}`
     : pend('registrar');
 
   // Una fila por concepto, con su etiqueta a la izquierda, como en su dibujo
