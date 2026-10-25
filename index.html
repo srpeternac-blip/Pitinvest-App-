@@ -115,7 +115,20 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .ev-est.e-ok{color:var(--verde);border-color:rgba(74,222,128,.45);background:rgba(74,222,128,.08)}
 .ev-est.e-est{color:var(--pos);border-color:rgba(247,184,60,.45);background:rgba(247,184,60,.08)}
 .c-core{color:var(--verde)} .c-swing{color:#b794f6} .c-qf{color:var(--watch)} .c-opc{color:var(--pos)}
-.rtit{font-weight:800} .rtit.r-bien{color:var(--verde)} .rtit.r-mal{color:var(--alarma)} .rtit.r-medio{color:var(--pos)}
+.r-pos{color:var(--verde)} .r-neg{color:var(--alarma)} .r-na{color:var(--tenue);font-weight:400}
+/* Veredicto, justo después de las cifras */
+.rver{font-family:var(--sans);font-size:13px;font-weight:800;margin-left:14px;padding:3px 10px;border-radius:6px;
+  border:1px solid var(--borde);color:var(--tinta)}
+.rver.r-bien{color:var(--verde);border-color:rgba(74,222,128,.5);background:rgba(74,222,128,.1)}
+.rver.r-mal{color:var(--alarma);border-color:rgba(255,95,77,.5);background:rgba(255,95,77,.1)}
+.rver.r-medio{color:var(--pos);border-color:rgba(247,184,60,.5);background:rgba(247,184,60,.1)}
+/* Lo bueno / lo malo */
+.rvins{display:flex;flex-direction:column;gap:7px}
+.rvin{display:flex;gap:10px;align-items:baseline;font-size:14px;line-height:1.55}
+.rtag{flex:none;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  padding:2px 8px;border-radius:5px;white-space:nowrap}
+.rtag.t-bueno{color:#b9f5cf;background:rgba(74,222,128,.16)}
+.rtag.t-malo{color:#ffc4bc;background:rgba(255,95,77,.16)}
 .dbtns{display:flex;gap:9px;margin-left:auto}
 .dtop .dbtns .btn{margin-left:0}
 .btn.btn2{display:inline-flex;align-items:center;background:none;color:var(--tinta);box-shadow:inset 0 0 0 1px var(--borde);text-decoration:none}
@@ -1566,18 +1579,30 @@ const TITULARES = [
   [/^caen\s+m[aá]rgenes/i, 'r-medio'],
   [/^decepciona/i,         'r-mal']
 ];
-function comentarioRes(t){
+function partesComentario(t){
   const s = String(t).trim();
   const m = s.match(/^([^.:]{2,60})[.:]\s*(.*)$/s);
-  if(!m) return `<div class="txt">${esc(s)}</div>`;
-  const tit = m[1].trim(), resto = m[2];
-  let cls = (TITULARES.find(([re]) => re.test(tit)) || [])[1];
-  if(cls == null){
-    const bien = /\bbat(e|en|ió)\b|supera|mejor de lo esperado/i.test(tit);
-    const mal  = /decepcion|por debajo|peor de lo esperado/i.test(tit);
-    cls = bien && mal ? 'r-medio' : bien ? 'r-bien' : mal ? 'r-mal' : 'r-neutro';
+  let tit = '', cls = '', resto = s;
+  /* Solo es veredicto si es uno de la lista (o se le parece mucho). Así un
+     comentario con el formato viejo no se convierte en etiqueta. */
+  if(m){
+    const t0 = m[1].trim();
+    let c = (TITULARES.find(([re]) => re.test(t0)) || [])[1];
+    if(c == null){
+      const bien = /\bbat(e|en|ió)\b|supera|mejor de lo esperado/i.test(t0);
+      const mal  = /decepcion|por debajo|peor de lo esperado/i.test(t0);
+      c = bien && mal ? 'r-medio' : bien ? 'r-bien' : mal ? 'r-mal' : null;
+    }
+    if(c != null){ tit = t0; cls = c; resto = m[2]; }
   }
-  return `<div class="txt"><b class="rtit ${cls}">${esc(tit)}.</b> ${esc(resto)}</div>`;
+  /* «Lo bueno: … Lo malo: …» en dos viñetas; si no viene así, el texto tal cual */
+  const bueno = (resto.match(/lo bueno\s*:\s*([\s\S]*?)(?=\s*lo malo\s*:|$)/i) || [])[1];
+  const malo  = (resto.match(/lo malo\s*:\s*([\s\S]*)$/i) || [])[1];
+  const vin = (cls, lab, txt) => `<div class="rvin"><span class="rtag ${cls}">${lab}</span><span>${esc(txt.trim())}</span></div>`;
+  const cuerpo = (bueno || malo)
+    ? `<div class="rvins">${bueno ? vin('t-bueno','Lo bueno',bueno) : ''}${malo ? vin('t-malo','Lo malo',malo) : ''}</div>`
+    : (resto.trim() ? `<div class="txt">${esc(resto.trim())}</div>` : '');
+  return {tit, cls, cuerpo};
 }
 function distEntrada(f){
   const p = num(f.PRECIO), z = zonaDe(f.ENTRADA_1 || f.ENTRADA_2);
@@ -1707,14 +1732,23 @@ function abrir(tk, mantenerScroll){
      olvida el apóstrofo, Google los convierte en número y en la celda queda
      0,043 en vez de +4,3%. El peligro no es el dato: es que no se note. Si
      llega sin el signo de porcentaje, se pinta marcado para que cante. */
-  const resPct = (v) => !has(v) ? '—'
-    : /%/.test(String(v)) ? esc(v)
+  /* Cada cifra en verde si es positiva y en rojo si es negativa; «n/a» en gris.
+     Se mira el signo del principio («-6,1% (pro forma +0,5%)» es negativa). */
+  const signo = (v) => { const t = String(v).trim();
+    if(/^n\/?a\b/i.test(t)) return 'r-na';
+    if(/^[-−–]/.test(t)) return 'r-neg';
+    const n = num((t.match(/^[+]?\d[\d.,]*/) || [''])[0]);
+    return n == null ? '' : n > 0 ? 'r-pos' : ''; };
+  const resPct = (v) => !has(v) ? '<span class="r-na">—</span>'
+    : /%/.test(String(v)) || /^n\/?a\b/i.test(String(v).trim()) ? `<span class="${signo(v)}">${esc(v)}</span>`
     : `<span class="dudoso" title="En el Sheet esta celda no lleva el signo de %. Probablemente Google la convirtió en número al escribirla sin apóstrofo. Revísala.">${esc(v)} ⚠</span>`;
   const hayRes = has(f.RES_BPA) || has(f.RES_VENTAS) || has(f.RES_COMENTARIO);
+  const com = has(f.RES_COMENTARIO) ? partesComentario(f.RES_COMENTARIO) : null;
   const bloqueRes = hayRes
     ? `<div class="resline"><b>Ventas</b> ${resPct(f.RES_VENTAS)}
-         <span class="gion">—</span> <b>BPA</b> ${resPct(f.RES_BPA)}</div>
-       ${has(f.RES_COMENTARIO) ? comentarioRes(f.RES_COMENTARIO) : ''}`
+         <span class="gion">—</span> <b>BPA</b> ${resPct(f.RES_BPA)}
+         ${com && com.tit ? `<span class="rver ${com.cls}">${esc(com.tit)}</span>` : ''}</div>
+       ${com ? com.cuerpo : ''}`
     : pend('registrar');
 
   // Una fila por concepto, con su etiqueta a la izquierda, como en su dibujo
