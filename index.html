@@ -75,6 +75,24 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .flista{flex:0 0 196px;align-self:flex-start;position:sticky;top:var(--hdr);height:calc(100vh - var(--hdr));
   display:flex;flex-direction:column;border-right:1px solid var(--borde);background:var(--banda)}
 .flista .list{border-top:0}
+.lhead{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:12px 12px 10px;
+  border-bottom:1px solid var(--borde);text-align:left;flex:none}
+.lhead span{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--pos)}
+.lhead em{font-style:normal;font-family:var(--mono);font-size:11px;color:var(--tenue)}
+.lhead:hover em{color:var(--tinta)}
+/* Tesis de la IA: el veredicto, al final del texto */
+.veri{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;
+  font-size:12px;font-weight:800;margin-left:4px;vertical-align:-3px}
+.v-bien{color:#06180c;background:var(--verde)} .v-mal{color:#fff;background:var(--alarma)} .v-medio{color:var(--pos);font-size:16px}
+/* Apartados de niveles (plan de acción y entrada de watchlist) */
+.nl{display:flex;gap:12px;align-items:baseline;font-size:13.5px}
+.nl b{font-family:var(--sans);font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tenue);min-width:128px}
+.nl span{font-family:var(--mono)}
+.dist{font-weight:700} .dist.d-zona{color:var(--verde)} .dist.d-cerca{color:var(--pos)}
+.dbtns{display:flex;gap:9px;margin-left:auto}
+.dtop .dbtns .btn{margin-left:0}
+.btn.btn2{display:inline-flex;align-items:center;background:none;color:var(--tinta);box-shadow:inset 0 0 0 1px var(--borde);text-decoration:none}
+.btn.btn2:hover{box-shadow:inset 0 0 0 1px var(--tinta)}
 .fchip{border:1px solid var(--borde);border-radius:999px;padding:4px 11px;font-size:12.5px;color:var(--media);background:var(--panel);white-space:nowrap}
 .fchip.on{color:#140f05;background:var(--pos);border-color:var(--pos);font-weight:700}
 .list{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;border-top:1px solid var(--borde2)}
@@ -86,7 +104,7 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .d-cartera{background:var(--pos)} .d-watchlist{background:var(--watch)} .d-descartada{background:var(--tenue)} .d-otro{background:var(--malva)}
 .lmain{flex:1;min-width:0}
 .ltick{font-family:var(--mono);font-weight:700;font-size:13.5px}
-.lname{font-size:12px;color:var(--tenue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lname{flex:1;min-width:0;font-size:13px;color:var(--tinta);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lprice{font-family:var(--mono);font-size:12.5px;color:var(--media);text-align:right;flex:none}
 .lright{display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex:none}
 .lpl{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:-.01em;flex:none;min-width:44px;text-align:right}
@@ -246,7 +264,7 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
   border-radius:9px;padding:8px 11px}
 .pnivel{font-family:var(--mono);font-size:13px;color:var(--media);margin-left:9px}
 /* Los niveles de entrada y salida, debajo del plan de acción */
-.niveles{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.niveles{display:flex;flex-direction:column;gap:6px;margin-top:9px}
 .nchip{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--media);
   border:1px solid var(--borde);border-radius:7px;padding:4px 10px;background:var(--panel)}
 .nchip b{font-family:var(--sans);font-size:9.5px;font-weight:700;letter-spacing:.13em;
@@ -379,6 +397,7 @@ h4.sec:first-child{margin-top:0}
   .fr{grid-template-columns:1fr;gap:7px;padding:13px 0}
   .fr-lab{padding-top:0}
   .dtop .btn{margin-left:0}
+  .dbtns{margin-left:0}
   /* En móvil no hay sitio para dos columnas: el fundamental va debajo */
   .fsplit{flex-direction:column}
   .flista{position:static;height:auto;flex:none;width:100%;border-right:0;border-bottom:1px solid var(--borde)}
@@ -433,6 +452,7 @@ h4.sec:first-child{margin-top:0}
     <section class="view" id="view-fichas">
       <div class="fsplit" id="fsplit">
         <aside class="flista">
+          <button class="lhead" id="lhead" title="Ordenar"></button>
           <div class="list" id="list"><div class="lempty"><span class="spin"></span></div></div>
         </aside>
         <main class="detail" id="detail">
@@ -610,7 +630,11 @@ let todos = localStorage.getItem(LS_TODOS) === '1';
 const COLS = ['TICKER','NOMBRE','SIMBOLO_GF','ESTADO','CARTERA','DESCRIPCION','SECTOR','SUBSECTOR',
   'POSICION','RES_BPA','RES_VENTAS','RES_COMENTARIO','PROX_RESULTADOS','QUE_VIGILAR',
   'TESIS_PITI','TESIS_IA','PLAN_ACCION','ENTRADA_1','ENTRADA_2','SALIDA','RESUMEN','ACTUALIZADO',
-  'PRECIO','PL_PCT','PL_IMP'];   // las tres últimas son fórmula: nadie las escribe a mano
+  'PRECIO','PARCIAL','ZONA_INTERES'];
+/* PRECIO es fórmula (GOOGLEFINANCE). PARCIAL y ZONA_INTERES ocupan desde el
+   25-oct las columnas X e Y, que antes eran PL_PCT y PL_IMP. La ganancia
+   (PL_PCT, PL_IMP) ya no sale de este Sheet: la mete aplicaGanancias() desde
+   «cartera para ia». */
 
 function aObjetos(rows, cols){
   if(!rows.length) return [];
@@ -1313,26 +1337,33 @@ function pintarFiltros(){
   $('#fEstado').innerHTML = ESTADOS.map(([v,l]) =>
     `<button class="fsub ${filtroEstado===v?'on':''}" data-est="${v}">${l}</button>`).join('');
 }
+/* Orden de la lista: alfabético por nombre, o por % de mayor a menor (las
+   que no tienen % van al final). Se cambia pulsando la cabecera. */
+let ordenLista = 'az';
+const nombreDe = (f) => String(f.NOMBRE || f.TICKER || '');
 function visibles(){
   const q = query.trim().toLowerCase();
   const pasa = (ESTADOS.find(([v]) => v === filtroEstado) || ESTADOS[0])[2];
+  const az = (a,b) => nombreDe(a).localeCompare(nombreDe(b), 'es');
   return fichas.filter(f => {
     if(!pasa(f)) return false;
     if(q && !((f.TICKER + ' ' + f.NOMBRE + ' ' + f.SECTOR).toLowerCase().includes(q))) return false;
     return true;
-  }).sort((a,b) => String(a.TICKER).localeCompare(String(b.TICKER), 'es'));   // la lista enseña tickers: se ordena por ticker
+  }).sort(ordenLista === 'pct'
+    ? (a,b) => { const x = fraccion(a.PL_PCT), y = fraccion(b.PL_PCT);
+        if(x == null && y == null) return az(a,b);
+        if(x == null) return 1; if(y == null) return -1;
+        return (y - x) || az(a,b); }
+    : az);
 }
 function pintarLista(){
   const list = visibles();
+  const etiqueta = (ESTADOS.find(([v]) => v === filtroEstado) || ESTADOS[0])[1];
+  $('#lhead').innerHTML = `<span>${esc(etiqueta)}</span><em>${ordenLista === 'pct' ? '% ↓' : 'A–Z'}</em>`;
   $('#list').innerHTML = list.length ? list.map(f => {
-    const est = (f.ESTADO || '').toLowerCase();
-    const p = num(f.PRECIO);
     const pl = fraccion(f.PL_PCT);   // del SWING 2026; vacío si no la tiene comprada
-    const conocido = ['cartera','watchlist','descartada'].includes(est);
-    return `<button class="litem ${sel===f.TICKER.toUpperCase()?'sel':''}" data-tk="${esc(f.TICKER)}" title="${esc(f.NOMBRE || '')}">
-      <span class="ldot d-${conocido?est:'otro'}"></span>
-      <span class="lmain"><span class="ltick">${esc(f.TICKER)}</span></span>
-      <span class="lprice">${p!=null ? fmtNum(p, p>=100?0:2) + divisaDe(f.SIMBOLO_GF) : ''}</span>
+    return `<button class="litem ${sel===f.TICKER.toUpperCase()?'sel':''}" data-tk="${esc(f.TICKER)}" title="${esc(f.TICKER)}">
+      <span class="lname">${esc(nombreDe(f))}</span>
       <span class="lpl ${pl==null?'':(pl>=0?'pos':'neg')}">${pl!=null ? pctSig(pl) : ''}</span>
     </button>`;
   }).join('') : '<div class="lempty">Nada que coincida.</div>';
@@ -1366,33 +1397,67 @@ function chipPosicion(f){
    «✓ DE ACUERDO:», «✗ EN DESACUERDO:» o «~ CON MATICES:». Se pinta como chip
    de color (verde, rojo, ámbar) y el resto va como texto normal. Si no lleva
    etiqueta, sale el texto tal cual. */
+/* Análisis escribe la celda empezando por su veredicto («✓ DE ACUERDO:»,
+   «✗ EN DESACUERDO:», «~ CON MATICES:»). La app no enseña esa etiqueta: quita
+   el prefijo y pone al final del texto un check verde, una X roja o un
+   círculo ámbar. Nada más. */
 const VEREDICTOS = [
-  [/^\s*(?:[✗✘❌]\s*(?:EN\s+DESACUERDO)?|X\s+EN\s+DESACUERDO|EN\s+DESACUERDO)\s*:?\s*/i, 'En desacuerdo', 'p-salir'],
-  [/^\s*(?:~\s*(?:CON\s+MATICES)?|CON\s+MATICES)\s*:?\s*/i,                             'Con matices',   'p-valorando'],
-  [/^\s*(?:[✓✔✅]\s*(?:DE\s+ACUERDO)?|DE\s+ACUERDO)\s*:?\s*/i,                         'De acuerdo',    'p-completa']
+  [/^\s*(?:[✗✘❌]\s*(?:EN\s+DESACUERDO)?|X\s+EN\s+DESACUERDO|EN\s+DESACUERDO)\s*:?\s*/i, '✕', 'v-mal',  'En desacuerdo'],
+  [/^\s*(?:~\s*(?:CON\s+MATICES)?|CON\s+MATICES)\s*:?\s*/i,                             '●', 'v-medio','Con matices'],
+  [/^\s*(?:[✓✔✅]\s*(?:DE\s+ACUERDO)?|DE\s+ACUERDO)\s*:?\s*/i,                         '✓', 'v-bien', 'De acuerdo']
 ];
 function tesisIA(t){
   if(!has(t)) return `<div class="pend">Pendiente de analizar</div>`;
   const s = String(t);
-  for(const [re, lab, cls] of VEREDICTOS){
+  for(const [re, ico, cls, tit] of VEREDICTOS){
     const m = s.match(re);
     if(m && m[0].trim()){
       const resto = s.slice(m[0].length).trim();
-      return `<span class="pchip ${cls}">${lab}</span>` + (resto ? `<div class="txt" style="margin-top:8px">${esc(resto)}</div>` : '');
+      return `<div class="txt">${esc(resto)} <span class="veri ${cls}" title="${tit}">${ico}</span></div>`;
     }
   }
   return `<div class="txt">${esc(s)}</div>`;
 }
 /* Los niveles van con el plan de acción, que es donde decide a qué precio
    entra o sale. Se pintan tal y como están escritos: si puso 25, sale 25. */
+/* Debajo del texto del plan, solo los apartados que tengan valor:
+   Aumentar posición (ENTRADA_1 y ENTRADA_2) · Parcial (PARCIAL, donde coge
+   beneficio de una parte) · TP (SALIDA, donde sale con toda) · Zona de interés
+   (ZONA_INTERES, la que dice vigilar). */
 function nivelesPlan(f){
   const div = divisaDe(f.SIMBOLO_GF);
-  const chip = (lab, v) => `<span class="nchip"><b>${lab}</b>${esc(String(v).trim())}${esc(div)}</span>`;
+  const v = (x) => esc(String(x).trim()) + esc(div);
+  const linea = (lab, vals) => `<div class="nl"><b>${lab}</b><span>${vals}</span></div>`;
+  const aum = [f.ENTRADA_1, f.ENTRADA_2].filter(has).map(v).join(' <span class="sep">·</span> ');
   const out = [];
-  if(has(f.ENTRADA_1)) out.push(chip('Entrada', f.ENTRADA_1));
-  if(has(f.ENTRADA_2)) out.push(chip('Entrada', f.ENTRADA_2));
-  if(has(f.SALIDA))    out.push(chip('Salida',  f.SALIDA));
+  if(aum)                  out.push(linea('Aumentar posición', aum));
+  if(has(f.PARCIAL))       out.push(linea('Parcial', v(f.PARCIAL)));
+  if(has(f.SALIDA))        out.push(linea('TP', v(f.SALIDA)));
+  if(has(f.ZONA_INTERES))  out.push(linea('Zona de interés', v(f.ZONA_INTERES)));
   return out.length ? `<div class="niveles">${out.join('')}</div>` : '';
+}
+/* Watchlist: entrada, precio actual y cuánto falta en % hasta la zona de
+   entrada (la primera). Los niveles pueden ser zona («33-34»): se mide hasta el
+   borde más cercano. Verde si ya está en la zona o por debajo, ámbar si falta
+   un 8% o menos, como en su código de colores. */
+function zonaDe(txt){
+  const ns = (String(txt).match(/\d[\d.]*(?:,\d+)?/g) || []).map(num).filter(n => n != null);
+  return ns.length ? [Math.min(...ns), Math.max(...ns)] : null;
+}
+function bloqueEntrada(f){
+  const div = divisaDe(f.SIMBOLO_GF);
+  const niveles = [f.ENTRADA_1, f.ENTRADA_2].filter(has).map(n => esc(String(n).trim()) + esc(div));
+  if(!niveles.length) return pend('decidir');
+  const p = num(f.PRECIO), z = zonaDe(f.ENTRADA_1 || f.ENTRADA_2);
+  const linea = (lab, val) => `<div class="nl"><b>${lab}</b><span>${val}</span></div>`;
+  const out = [linea('Nivel', niveles.join(' <span class="sep">·</span> luego '))];
+  if(p != null) out.push(linea('Precio actual', fmtNum(p, p >= 100 ? 0 : 2) + esc(div)));
+  if(p != null && z){
+    const d = p > z[1] ? (z[1] - p) / p : 0;   // negativo: lo que tiene que caer
+    const cls = d >= 0 ? 'd-zona' : (-d <= CERCA ? 'd-cerca' : '');
+    out.push(linea('Distancia', `<span class="dist ${cls}">${d >= 0 ? 'en zona' : pctSig(d)}</span>`));
+  }
+  return `<div class="niveles">${out.join('')}</div>`;
 }
 const bloque = (label, txt, dim) => `<h4 class="sec">${esc(label)}</h4>` +
   (has(txt) ? `<div class="txt${dim?' dim':''}">${esc(txt)}</div>` : '<div class="nd">Sin datos.</div>');
@@ -1439,6 +1504,10 @@ function cuadraFecha(txt, iso){
   if(a.d && a.d !== b.d) return false;
   return true;
 }
+/* Investing no tiene una dirección que salga del ticker (usa nombres tipo
+   /equities/hermes-international), así que se abre su buscador con el nombre
+   de la empresa: el primer resultado suele ser el bueno. */
+const urlInvesting = (f) => 'https://es.investing.com/search/?q=' + encodeURIComponent(nombreDe(f));
 function proxResultados(f){
   const delSheet = has(f.PROX_RESULTADOS) ? String(f.PROX_RESULTADOS).trim() : '';
   const iso = fechaDelCalendario(f);
@@ -1542,7 +1611,7 @@ function abrir(tk, mantenerScroll){
     fila('Descripción', texto(f.DESCRIPCION, 'describir')),
     fila('Sector', sector ? `<div class="txt">${sector}</div>` : pend('clasificar')),
     esWatch ? fila('Cartera', has(f.CARTERA) ? `<div class="txt">${esc(f.CARTERA)}</div>` : pend('asignar')) : '',
-    esWatch ? fila('Entrada', niveles.length ? `<div class="txt">${niveles.join(' <span class="sep">·</span> luego ')}</div>` : pend('decidir'))
+    esWatch ? fila('Entrada', bloqueEntrada(f))
             : fila('Posición', chipPosicion(f) || pend('decidir')),
     esWatch ? '' : fila('Plan de acción', bloquePlan),
     ...comunes
@@ -1556,7 +1625,10 @@ function abrir(tk, mantenerScroll){
       <div class="dtop">
         <div class="dname">${esc(f.NOMBRE || f.TICKER)}<span class="dtick">${esc(f.TICKER)}</span></div>
         ${pl}
-        <button class="btn ${fundAbierto === sym ? 'on' : ''}" data-fund="${esc(sym)}">Fundamental</button>
+        <div class="dbtns">
+          <a class="btn btn2" href="${esc(urlInvesting(f))}" target="_blank" rel="noopener">Investing</a>
+          <button class="btn ${fundAbierto === sym ? 'on' : ''}" data-fund="${esc(sym)}">Fundamental</button>
+        </div>
       </div>
     </div>
 
@@ -1915,6 +1987,10 @@ function irAFicha(tk){ irA('fichas'); abrir(tk); }
   }
   const b = e.target.closest('[data-ir]'); if(b) irAFicha(b.dataset.ir);
 }));
+$('#lhead').addEventListener('click', () => {
+  ordenLista = ordenLista === 'az' ? 'pct' : 'az';
+  pintarLista();
+});
 $('#list').addEventListener('click', e => {
   const b = e.target.closest('[data-tk]'); if(b) abrir(b.dataset.tk);
 });
