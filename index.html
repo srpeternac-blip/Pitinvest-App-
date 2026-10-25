@@ -1320,7 +1320,7 @@ function visibles(){
     if(!pasa(f)) return false;
     if(q && !((f.TICKER + ' ' + f.NOMBRE + ' ' + f.SECTOR).toLowerCase().includes(q))) return false;
     return true;
-  }).sort((a,b) => String(a.TICKER).localeCompare(String(b.TICKER), 'es'))   // la lista enseña tickers: se ordena por ticker;
+  }).sort((a,b) => String(a.TICKER).localeCompare(String(b.TICKER), 'es'));   // la lista enseña tickers: se ordena por ticker
 }
 function pintarLista(){
   const list = visibles();
