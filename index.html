@@ -98,8 +98,8 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .n-tp  .nl2-t{color:var(--verde)}
 .n-int .nl2-t{color:#b794f6}
 /* Titular de resultados */
-.ev-tabla{padding:0;overflow:hidden}
-.ev-fila{display:grid;grid-template-columns:92px minmax(0,1.3fr) minmax(0,1.6fr) minmax(0,1fr) 120px;gap:14px;align-items:center;
+.ev-tabla{padding:0;overflow:hidden;width:max-content;max-width:100%}
+.ev-fila{display:grid;grid-template-columns:62px 210px 150px 100px 110px;gap:10px;align-items:center;
   padding:11px 18px;border-top:1px solid rgba(43,42,71,.5)}
 .ev-fila.ev-nuevo{border-top:1px solid var(--borde)}
 .ev-cab{border-top:0;border-bottom:2px solid var(--pos);font-family:var(--mono);font-size:10.5px;font-weight:700;
@@ -107,7 +107,7 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .ev-dia{font-weight:800;color:var(--pos);font-size:14px}
 .ev-hoy{background:rgba(247,184,60,.05)}
 .ev-emp{display:flex;flex-direction:column;gap:2px;text-align:left}
-.ev-emp b{font-size:14.5px} .ev-emp > span{font-family:var(--mono);font-size:10.5px;color:var(--tenue)}
+.ev-emp b{font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .ev-emp > span{font-family:var(--mono);font-size:10.5px;color:var(--tenue)}
 .ev-emp > span span{font-weight:700}
 .ev-emp:hover b{color:var(--pos)}
 .ev-ev{font-size:14px} .ev-hora{font-size:13.5px;color:var(--media)}
@@ -440,6 +440,7 @@ h4.sec:first-child{margin-top:0}
   .dbtns{margin-left:0}
   /* En móvil no hay sitio para dos columnas: el fundamental va debajo */
   .fsplit{flex-direction:column}
+  .ev-tabla{width:auto}
   .ev-fila{grid-template-columns:62px 1fr;gap:4px 10px}
   .ev-fila > :nth-child(n+3){grid-column:2}
   .ev-cab{display:none}
@@ -1242,7 +1243,7 @@ function cabeceraSemana(titulo, sub, dias, off, tipo, extra){
 /* ═══════════ EVENTOS DE CARTERA ═══════════
    La semana de sus posiciones abiertas: resultados y dividendos (día ex y día
    de pago). Todo sale solo de Yahoo, con la misma llamada que ya se hace para
-   el calendario; la hora («antes de apertura», «tras el cierre») la pone
+   el calendario; la sesión (pre-market, post-market) la pone
    Nasdaq cuando la tiene, que solo cubre lo cotizado en EE.UU. Sin pestaña en
    el Sheet ni trabajo para ningún chat, a propósito. */
 const COLOR_CARTERA = {CORE:'c-core', SWING:'c-swing', QF:'c-qf', OPCIONES:'c-opc'};
@@ -1254,7 +1255,7 @@ function eventosDeLaSemana(dias){
     const tk = String(f.TICKER).toUpperCase(), ev = misEventos[tk] || {};
     (misFechas[tk] || []).filter(iso => isos.includes(iso)).forEach(iso => {
       const ns = (resultados[iso] || []).find(x => x.ticker === tk);
-      const hora = ns && ns.sesion === 'BMO' ? 'Antes de apertura' : ns && ns.sesion === 'AMC' ? 'Tras el cierre' : 'Por confirmar';
+      const hora = ns && ns.sesion === 'BMO' ? 'Pre-market' : ns && ns.sesion === 'AMC' ? 'Post-market' : 'Por confirmar';
       const estado = ev.estimada === false ? ['Confirmado','e-ok'] : ev.estimada === true ? ['Estimado','e-est'] : ['Sin confirmar','e-est'];
       out.push({iso, f, orden: 0, evento: 'Resultados', hora, estado});
     });
@@ -1283,7 +1284,7 @@ function pintarEventos(){
   el.innerHTML = cabeceraSemana('Eventos de cartera', 'Resultados y dividendos de tus posiciones', dias, offEv, 'ev') +
     (!workerUrl ? '<div class="err">Los eventos salen del worker. Pulsa el engranaje de arriba y pega su URL.</div>' : '') +
     `<div class="card ev-tabla">
-      <div class="ev-fila ev-cab"><div>Día</div><div>Empresa</div><div>Evento</div><div>Hora (Madrid)</div><div>Fecha</div></div>
+      <div class="ev-fila ev-cab"><div>Día</div><div>Empresa</div><div>Evento</div><div>Sesión</div><div>Fecha</div></div>
       ${filas || '<div class="vacio" style="padding:18px">Nada de tu cartera esta semana.</div>'}
     </div>`;
 }
