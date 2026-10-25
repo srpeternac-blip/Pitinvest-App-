@@ -98,6 +98,23 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .n-tp  .nl2-t{color:var(--verde)}
 .n-int .nl2-t{color:#b794f6}
 /* Titular de resultados */
+.ev-tabla{padding:0;overflow:hidden}
+.ev-fila{display:grid;grid-template-columns:92px minmax(0,1.3fr) minmax(0,1.6fr) minmax(0,1fr) 120px;gap:14px;align-items:center;
+  padding:11px 18px;border-top:1px solid rgba(43,42,71,.5)}
+.ev-fila.ev-nuevo{border-top:1px solid var(--borde)}
+.ev-cab{border-top:0;border-bottom:2px solid var(--pos);font-family:var(--mono);font-size:10.5px;font-weight:700;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--pos)}
+.ev-dia{font-weight:800;color:var(--pos);font-size:14px}
+.ev-hoy{background:rgba(247,184,60,.05)}
+.ev-emp{display:flex;flex-direction:column;gap:2px;text-align:left}
+.ev-emp b{font-size:14.5px} .ev-emp > span{font-family:var(--mono);font-size:10.5px;color:var(--tenue)}
+.ev-emp > span span{font-weight:700}
+.ev-emp:hover b{color:var(--pos)}
+.ev-ev{font-size:14px} .ev-hora{font-size:13.5px;color:var(--media)}
+.ev-est{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:5px;border:1px solid}
+.ev-est.e-ok{color:var(--verde);border-color:rgba(74,222,128,.45);background:rgba(74,222,128,.08)}
+.ev-est.e-est{color:var(--pos);border-color:rgba(247,184,60,.45);background:rgba(247,184,60,.08)}
+.c-core{color:var(--verde)} .c-swing{color:#b794f6} .c-qf{color:var(--watch)} .c-opc{color:var(--pos)}
 .rtit{font-weight:800} .rtit.r-bien{color:var(--verde)} .rtit.r-mal{color:var(--alarma)} .rtit.r-medio{color:var(--pos)}
 .dbtns{display:flex;gap:9px;margin-left:auto}
 .dtop .dbtns .btn{margin-left:0}
@@ -410,6 +427,9 @@ h4.sec:first-child{margin-top:0}
   .dbtns{margin-left:0}
   /* En móvil no hay sitio para dos columnas: el fundamental va debajo */
   .fsplit{flex-direction:column}
+  .ev-fila{grid-template-columns:62px 1fr;gap:4px 10px}
+  .ev-fila > :nth-child(n+3){grid-column:2}
+  .ev-cab{display:none}
   .flista{position:static;height:auto;flex:none;width:100%;border-right:0;border-bottom:1px solid var(--borde)}
   .flista .list{max-height:42vh;overflow-y:auto}
   .filters{flex-direction:row;overflow-x:auto;padding-bottom:4px}
@@ -434,6 +454,7 @@ h4.sec:first-child{margin-top:0}
     <div class="menu-nav">
       <button class="nv on" data-view="agenda"><span class="mk"></span>Agenda del día</button>
       <button class="nv" data-view="cal"><span class="mk"></span>Calendario</button>
+      <button class="nv" data-view="eventos"><span class="mk"></span>Eventos de cartera</button>
       <button class="nv" data-view="macro"><span class="mk"></span>Macro</button>
       <button class="nv" data-view="analisis"><span class="mk"></span>Analizar</button>
       <button class="nv" data-view="tareas"><span class="mk"></span>Tareas pendientes</button>
@@ -456,6 +477,7 @@ h4.sec:first-child{margin-top:0}
   <div>
     <section class="view on" id="view-agenda"><div class="wrap" id="agenda"></div></section>
     <section class="view" id="view-cal"><div class="wrap ancho" id="cal"></div></section>
+    <section class="view" id="view-eventos"><div class="wrap ancho" id="eventos"></div></section>
     <section class="view" id="view-macro"><div class="wrap" id="macroV"></div></section>
     <section class="view" id="view-tareas"><div class="wrap" id="tareas"></div></section>
 
@@ -524,7 +546,7 @@ const MAX_POR_SESION = 11;        // cuántas ajenas caben por sesión antes de 
 const LS = 'pitinvest_cache_v3';
 const LS_WORKER = 'momentum_worker_url';   // misma clave que PITrader App: comparten worker
 const LS_TODOS = 'pitinvest_todos';
-const LS_MIAS = 'pitinvest_mis_resultados_v1';
+const LS_MIAS = 'pitinvest_mis_resultados_v2';   // v2: guarda también dividendos
 
 const cacheBust = (b) => b + (b.includes('?') ? '&' : '?') + 't=' + Date.now();
 const urlDe = (tab) => cacheBust(`${PUB}?gid=${GID[tab]}&single=true&output=csv`);
@@ -628,11 +650,12 @@ function yahooDe(gf, tk){
 let fichas = [], historial = [], macroSheet = [], pendientes = [], cartera = [], sectores = [], sel = null;
 let resultados = {};              // ISO -> [{ticker, nombre, sesion, cap}] | null mientras carga
 let macroApi = {};                // ISO -> [{hora, evento, importancia}]
-let misFechas = {};               // TICKER suyo -> [ISO] de sus próximos resultados (Yahoo)
+let misFechas = {};
+let misEventos = {};               // TICKER -> {estimada, ex, pago} (Yahoo)               // TICKER suyo -> [ISO] de sus próximos resultados (Yahoo)
 let simbolos = {};                // TICKER -> símbolo de Yahoo resuelto
 let semanasPedidas = new Set();
 let filtroEstado = 'todas', query = '', vista = 'agenda';
-let offCal = 0, offMacro = 0;
+let offCal = 0, offMacro = 0, offEv = 0;
 let workerUrl = localStorage.getItem(LS_WORKER) || '';
 /* Botón TODOS del calendario: apagado = solo cartera y watchlist. Se recuerda. */
 let todos = localStorage.getItem(LS_TODOS) === '1';
@@ -883,7 +906,7 @@ function pintarTodo(ts, deCache){
     (deCache ? 'copia local'
              : ts.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}) +
                (vivosConservados ? ' · precios de antes' : ''));
-  pintarAgenda(); pintarCalendario(); pintarMacro(); pintarTareas(); pintarFiltros(); pintarLista();
+  pintarAgenda(); pintarCalendario(); pintarEventos(); pintarMacro(); pintarTareas(); pintarFiltros(); pintarLista();
   const hash = decodeURIComponent((location.hash || '').replace('#','')).toUpperCase();
   const quiere = sel || hash;
   if(quiere && fichas.some(f => f.TICKER.toUpperCase() === quiere)) abrir(quiere, true);
@@ -971,6 +994,7 @@ async function cargarSemana(off){
     }catch(e){ resultados[iso] = []; }
   }));
   if(vista === 'cal') pintarCalendario();
+  if(vista === 'eventos') pintarEventos();
   pintarAgenda();
 }
 
@@ -1010,24 +1034,32 @@ async function cargarResultadosMios(){
   if(!workerUrl) return;
   try{
     const c = JSON.parse(localStorage.getItem(LS_MIAS) || 'null');
-    if(c && Date.now() - c.ts < 12*3600*1000 && c.datos){ misFechas = c.datos; pintarCalendario(); pintarAgenda(); return; }
+    if(c && Date.now() - c.ts < 12*3600*1000 && c.datos){ misFechas = c.datos; misEventos = c.eventos || {}; pintarCalendario(); pintarAgenda(); pintarEventos(); return; }
   }catch(e){}
   const lista = [...new Set([...cartera.map(x => x.TICKER), ...fichas.map(x => x.TICKER.toUpperCase())])];
-  const datos = {};
+  const datos = {}, eventos = {};
+  const dia = (x) => { const v = rv(x); return v ? aISO(new Date(v * 1000)) : null; };
   await Promise.allSettled(lista.map(async tk => {
     const sym = await simboloYahoo(tk);
     if(!sym) return;
     try{
       const j = await api('/summary/' + encodeURIComponent(sym) + '?modules=calendarEvents');
       const r = j && j.quoteSummary && j.quoteSummary.result && j.quoteSummary.result[0];
-      const ed = r && r.calendarEvents && r.calendarEvents.earnings && r.calendarEvents.earnings.earningsDate;
-      const fechas = (ed || []).map(x => rv(x)).filter(Boolean).map(s => aISO(new Date(s * 1000)));
+      const ce = (r && r.calendarEvents) || {};
+      const earn = ce.earnings || {};
+      const fechas = (earn.earningsDate || []).map(dia).filter(Boolean);
       if(fechas.length) datos[tk] = [...new Set(fechas)];
+      /* Para la pantalla de eventos: si la fecha de resultados es estimada,
+         y las dos fechas del dividendo (ex y pago) */
+      eventos[tk] = {
+        estimada: typeof earn.isEarningsDateEstimate === 'boolean' ? earn.isEarningsDateEstimate : null,
+        ex: dia(ce.exDividendDate), pago: dia(ce.dividendDate)
+      };
     }catch(e){}
   }));
-  misFechas = datos;
-  try{ localStorage.setItem(LS_MIAS, JSON.stringify({ts:Date.now(), datos})); }catch(e){}
-  pintarCalendario(); pintarAgenda();
+  misFechas = datos; misEventos = eventos;
+  try{ localStorage.setItem(LS_MIAS, JSON.stringify({ts:Date.now(), datos, eventos})); }catch(e){}
+  pintarCalendario(); pintarAgenda(); pintarEventos();
 }
 /* Lo de Nasdaq más las suyas que Yahoo coloque ese día y Nasdaq no traiga */
 function resultadosDelDia(iso){
@@ -1192,6 +1224,55 @@ function cabeceraSemana(titulo, sub, dias, off, tipo, extra){
       <button class="wkb" data-wk="${tipo}:1" title="Semana siguiente">›</button>
     </div>
   </div>`;
+}
+
+/* ═══════════ EVENTOS DE CARTERA ═══════════
+   La semana de sus posiciones abiertas: resultados y dividendos (día ex y día
+   de pago). Todo sale solo de Yahoo, con la misma llamada que ya se hace para
+   el calendario; la hora («antes de apertura», «tras el cierre») la pone
+   Nasdaq cuando la tiene, que solo cubre lo cotizado en EE.UU. Sin pestaña en
+   el Sheet ni trabajo para ningún chat, a propósito. */
+const COLOR_CARTERA = {CORE:'c-core', SWING:'c-swing', QF:'c-qf', OPCIONES:'c-opc'};
+function eventosDeLaSemana(dias){
+  const isos = dias.map(aISO);
+  const mias = fichas.filter(f => (f.ESTADO || '').toLowerCase() === 'cartera');
+  const out = [];
+  mias.forEach(f => {
+    const tk = String(f.TICKER).toUpperCase(), ev = misEventos[tk] || {};
+    (misFechas[tk] || []).filter(iso => isos.includes(iso)).forEach(iso => {
+      const ns = (resultados[iso] || []).find(x => x.ticker === tk);
+      const hora = ns && ns.sesion === 'BMO' ? 'Antes de apertura' : ns && ns.sesion === 'AMC' ? 'Tras el cierre' : 'Por confirmar';
+      const estado = ev.estimada === false ? ['Confirmado','e-ok'] : ev.estimada === true ? ['Estimado','e-est'] : ['Sin confirmar','e-est'];
+      out.push({iso, f, orden: 0, evento: 'Resultados', hora, estado});
+    });
+    if(ev.ex && isos.includes(ev.ex))     out.push({iso: ev.ex,   f, orden: 1, evento: 'Fecha ex-dividendo', hora: '—', estado: ['Anunciado','e-ok']});
+    if(ev.pago && isos.includes(ev.pago)) out.push({iso: ev.pago, f, orden: 2, evento: 'Pago del dividendo', hora: '—', estado: ['Anunciado','e-ok']});
+  });
+  return out.sort((a,b) => a.iso.localeCompare(b.iso) || a.orden - b.orden || nombreDe(a.f).localeCompare(nombreDe(b.f), 'es'));
+}
+function pintarEventos(){
+  const el = $('#eventos'); if(!el) return;
+  const dias = semanaLV(offEv), hoy = hoyISO();
+  const evs = eventosDeLaSemana(dias);
+  const cartTxt = (f) => String(f.CARTERA || '').toUpperCase().split(/\s+Y\s+/).map(c =>
+    `<span class="${COLOR_CARTERA[c.trim()] || ''}">${esc(c.trim())}</span>`).join(' · ');
+  let previo = '';
+  const filas = evs.map(e => {
+    const d = fechaDe(e.iso), nuevoDia = e.iso !== previo; previo = e.iso;
+    return `<div class="ev-fila ${nuevoDia ? 'ev-nuevo' : ''} ${e.iso === hoy ? 'ev-hoy' : ''}">
+      <div class="ev-dia">${nuevoDia ? esc(DIAS[d.getDay()].slice(0,3).toUpperCase() + ' ' + d.getDate()) : ''}</div>
+      <button class="ev-emp" data-ir="${esc(e.f.TICKER)}"><b>${esc(nombreDe(e.f))}</b><span>${esc(e.f.TICKER)} · ${cartTxt(e.f)}</span></button>
+      <div class="ev-ev">${esc(e.evento)}</div>
+      <div class="ev-hora">${esc(e.hora)}</div>
+      <div><span class="ev-est ${e.estado[1]}">${esc(e.estado[0])}</span></div>
+    </div>`;
+  }).join('');
+  el.innerHTML = cabeceraSemana('Eventos de cartera', 'Resultados y dividendos de tus posiciones', dias, offEv, 'ev') +
+    (!workerUrl ? '<div class="err">Los eventos salen del worker. Pulsa el engranaje de arriba y pega su URL.</div>' : '') +
+    `<div class="card ev-tabla">
+      <div class="ev-fila ev-cab"><div>Día</div><div>Empresa</div><div>Evento</div><div>Hora (Madrid)</div><div>Fecha</div></div>
+      ${filas || '<div class="vacio" style="padding:18px">Nada de tu cartera esta semana.</div>'}
+    </div>`;
 }
 
 /* ═══════════ AGENDA ═══════════ */
@@ -2018,6 +2099,7 @@ function irA(v){
   $('#fpanel').classList.toggle('on', v === 'fichas');
   document.body.classList.toggle('movil-fichas', v === 'fichas');
   if(v === 'cal') cargarSemana(offCal);
+  if(v === 'eventos'){ pintarEventos(); cargarSemana(offEv); }
   if(v === 'macro') cargarMacroSemana(offMacro);
   if(v !== 'analisis') window.scrollTo(0,0);
 }
@@ -2028,7 +2110,7 @@ document.querySelector('.menu').addEventListener('click', e => {
 
 /* ═══════════ Eventos ═══════════ */
 function irAFicha(tk){ irA('fichas'); abrir(tk); }
-['#cal','#macroV','#agenda'].forEach(s => $(s).addEventListener('click', e => {
+['#cal','#macroV','#agenda','#eventos'].forEach(s => $(s).addEventListener('click', e => {
   if(e.target.closest('[data-todos]')){
     todos = !todos;
     try{ localStorage.setItem(LS_TODOS, todos ? '1' : '0'); }catch(x){}
@@ -2039,6 +2121,7 @@ function irAFicha(tk){ irA('fichas'); abrir(tk); }
   if(w){
     const partes = w.dataset.wk.split(':'), tipo = partes[0], n = parseInt(partes[1], 10);
     if(tipo === 'cal'){ offCal = n === 0 ? 0 : offCal + n; pintarCalendario(); cargarSemana(offCal); }
+    else if(tipo === 'ev'){ offEv = n === 0 ? 0 : offEv + n; pintarEventos(); cargarSemana(offEv); }
     else { offMacro = n === 0 ? 0 : offMacro + n; pintarMacro(); cargarMacroSemana(offMacro); }
     return;
   }
@@ -2072,7 +2155,7 @@ $('#aCands').addEventListener('click', e => {
   $('#aCands').innerHTML = ''; aviso('',''); analizar(b.dataset.sym);
 });
 $('#btnRef').addEventListener('click', () => {
-  semanasPedidas.clear(); resultados = {}; macroApi = {}; misFechas = {}; simbolos = {};
+  semanasPedidas.clear(); resultados = {}; macroApi = {}; misFechas = {}; misEventos = {}; simbolos = {};
   try{ localStorage.removeItem(LS_MIAS); }catch(e){}
   cargar();
 });
