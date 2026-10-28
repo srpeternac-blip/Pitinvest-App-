@@ -163,6 +163,9 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);letter-spacing:-.02em;line-height:1}
 .rango{display:block;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.15em;
   text-transform:uppercase;margin-top:10px;color:var(--tenue)}
+/* Pantallas de PITrader integradas (mientras se rehacen dentro de Pitinvest) */
+.pt-view{padding:0}
+.pt-view iframe{display:block;width:100%;height:calc(100vh - var(--hdr));border:0;background:var(--noche)}
 .scr-h{display:flex;align-items:flex-end;gap:16px;margin-bottom:20px;flex-wrap:wrap}
 .wknav{display:flex;align-items:center;gap:6px;margin-left:auto}
 .wkb{border:1px solid var(--borde);background:var(--panel);border-radius:9px;color:var(--media);padding:8px 13px;font-size:14px}
@@ -474,6 +477,7 @@ h4.sec:first-child{margin-top:0}
   .fpanel.on{display:none}
   body.movil-fichas .fpanel.on{display:flex}
   .wrap{padding:16px 14px 70px}
+  .pt-view iframe{height:calc(100vh - var(--hdr) - 58px)}
   .semana{grid-template-columns:1fr}
   .detail{padding:16px 15px 70px}
   .dname{font-size:25px}
@@ -513,10 +517,15 @@ h4.sec:first-child{margin-top:0}
   <nav class="menu">
     <div class="menu-nav">
       <button class="nv on" data-view="agenda"><span class="mk"></span>Agenda del día</button>
+      <button class="nv" data-view="pt-cartera"><span class="mk"></span>Mi Cartera</button>
       <button class="nv" data-view="cal"><span class="mk"></span>Calendario</button>
       <button class="nv" data-view="eventos"><span class="mk"></span>Eventos de cartera</button>
+      <button class="nv" data-view="pt-dividendos"><span class="mk"></span>Dividendos</button>
+      <button class="nv" data-view="pt-insiders"><span class="mk"></span>Insiders</button>
       <button class="nv" data-view="macro"><span class="mk"></span>Macro</button>
       <button class="nv" data-view="analisis"><span class="mk"></span>Analizar</button>
+      <button class="nv" data-view="pt-analisis"><span class="mk"></span>Análisis completo</button>
+      <button class="nv" data-view="pt-busqueda"><span class="mk"></span>Momentum</button>
       <button class="nv" data-view="tareas"><span class="mk"></span>Tareas pendientes</button>
       <div class="nv-sep"></div>
       <button class="nv" data-view="fichas"><span class="mk"></span>Fichas</button>
@@ -540,6 +549,11 @@ h4.sec:first-child{margin-top:0}
     <section class="view" id="view-eventos"><div class="wrap ancho" id="eventos"></div></section>
     <section class="view" id="view-macro"><div class="wrap" id="macroV"></div></section>
     <section class="view" id="view-tareas"><div class="wrap" id="tareas"></div></section>
+    <section class="view pt-view" id="view-pt-cartera"></section>
+    <section class="view pt-view" id="view-pt-dividendos"></section>
+    <section class="view pt-view" id="view-pt-insiders"></section>
+    <section class="view pt-view" id="view-pt-analisis"></section>
+    <section class="view pt-view" id="view-pt-busqueda"></section>
 
     <section class="view" id="view-fichas">
       <div class="fsplit" id="fsplit">
@@ -2281,6 +2295,13 @@ $('#btnTest').addEventListener('click', async () => {
 });
 
 /* ═══════════ Navegación ═══════════ */
+/* Las pantallas de PITrader se abren dentro, cada una en su marco, la primera vez que se entra */
+const PITRADER = 'https://srpeternac-blip.github.io/PITrader-app/';
+function abrirPitrader(v){
+  const sec = $('#view-' + v);
+  if(sec && !sec.querySelector('iframe'))
+    sec.innerHTML = `<iframe src="${PITRADER}?embed=${v.slice(3)}" title="${v}" loading="lazy"></iframe>`;
+}
 function irA(v){
   vista = v;
   document.querySelectorAll('.nv').forEach(b => b.classList.toggle('on', b.dataset.view === v));
@@ -2290,6 +2311,7 @@ function irA(v){
   if(v === 'cal'){ pintarCalendario(); cargarSemana(offCal); }
   if(v === 'eventos'){ pintarEventos(); cargarSemana(offEv); }
   if(v === 'macro'){ pintarMacro(); cargarMacroSemana(offMacro); }
+  if(v.startsWith('pt-')) abrirPitrader(v);
   if(v !== 'analisis') window.scrollTo(0,0);
 }
 document.querySelector('.menu').addEventListener('click', e => {
