@@ -790,14 +790,14 @@ function fraccion(s){
 const rv = (x) => (x && typeof x === 'object' && 'raw' in x) ? x.raw : (typeof x === 'number' ? x : null);
 async function api(path){
   if(!workerUrl) throw new Error('SIN_WORKER');
-  const r = await fetch(workerUrl.replace(/\/+$/,'') + path);
+  const r = await fetch(workerUrl.replace(/\/+$/,'') + path, {signal: AbortSignal.timeout(15000)});
   if(!r.ok){ let m = 'Error ' + r.status; try{ const j = await r.json(); if(j.error) m += ': ' + j.error; }catch(e){} throw new Error(m); }
   return r.json();
 }
 /* Igual que PITrader: primero el worker y, si falla, un proxy público */
 async function nasdaq(path){
   try{ return await api('/nasdaq/' + path); }catch(e){}
-  const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://api.nasdaq.com/api/' + path)}`);
+  const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://api.nasdaq.com/api/' + path)}`, {signal: AbortSignal.timeout(15000)});
   const j = await r.json();
   return JSON.parse(j.contents);
 }
@@ -991,6 +991,7 @@ async function cargarSemana(off){
   if(semanasPedidas.has(off)) return;
   semanasPedidas.add(off);
   const dias = semanaLV(off);
+  let fallo = false;
   dias.forEach(d => { const i = aISO(d); if(resultados[i] === undefined) resultados[i] = null; });
   if(vista === 'cal') pintarCalendario();
   await Promise.allSettled(dias.map(async d => {
@@ -1008,8 +1009,10 @@ async function cargarSemana(off){
       const mias = lista.filter(x => x.mia);
       const otras = lista.filter(x => !x.mia && x.cap >= CAP_MINIMA).sort((a,b) => b.cap - a.cap);
       resultados[iso] = [...mias, ...otras];
-    }catch(e){ resultados[iso] = []; }
+    }catch(e){ resultados[iso] = []; fallo = true; }
+    if(vista === 'cal') pintarCalendario();   // cada día en cuanto llega, sin esperar al más lento
   }));
+  if(fallo) semanasPedidas.delete(off);       // si un día falló, se reintenta al volver a la semana
   if(vista === 'cal') pintarCalendario();
   if(vista === 'eventos') pintarEventos();
   pintarAgenda();
@@ -2136,9 +2139,9 @@ function irA(v){
   document.querySelectorAll('.view').forEach(s => s.classList.toggle('on', s.id === 'view-' + v));
   $('#fpanel').classList.toggle('on', v === 'fichas');
   document.body.classList.toggle('movil-fichas', v === 'fichas');
-  if(v === 'cal') cargarSemana(offCal);
+  if(v === 'cal'){ pintarCalendario(); cargarSemana(offCal); }
   if(v === 'eventos'){ pintarEventos(); cargarSemana(offEv); }
-  if(v === 'macro') cargarMacroSemana(offMacro);
+  if(v === 'macro'){ pintarMacro(); cargarMacroSemana(offMacro); }
   if(v !== 'analisis') window.scrollTo(0,0);
 }
 document.querySelector('.menu').addEventListener('click', e => {
