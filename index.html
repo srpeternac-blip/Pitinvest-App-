@@ -249,6 +249,11 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .tk-ed:hover{color:var(--tinta);background:var(--alto);opacity:1}
 .tk.hecha .tk-a{text-decoration:line-through;color:var(--tenue);font-weight:500}
 .tk.hecha .tk-d{display:none}
+.tk-a.con-det{cursor:pointer}
+.tk-a.con-det:hover{color:#fff}
+.tk-mas{display:inline-block;margin-left:8px;color:var(--tenue);font-weight:700;transition:transform .15s}
+.tk-mas.on{transform:rotate(90deg)}
+.tk.hecha .tk-mas{display:none}
 .tk-cab{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tenue);padding:10px 20px 8px}
 .tk-hechas .tk{padding:9px 20px}
 .tk-borrar{display:flex;align-items:center;gap:10px;justify-content:flex-end;padding:12px 20px 8px;border-top:1px solid rgba(43,42,71,.5);font-size:13.5px;color:var(--media)}
@@ -1393,6 +1398,8 @@ function pintarAgenda(){
 let tareaEdit = null;        // null | 'nueva' | índice en pendientes
 let confirmaBorrar = false;
 let tareaError = '';
+const tareasAbiertas = new Set();   // tareas con el detalle desplegado (asunto|creado)
+const claveTarea = (p) => p.ASUNTO + '|' + p.CREADO;
 const hayScript = () => !!(scriptUrl && scriptClave);
 const esHecha = (p) => (p.ESTADO || 'abierto').toLowerCase() === 'cerrado';
 
@@ -1447,8 +1454,8 @@ function filaTarea(p, i){
   return `<div class="tk ${hecha ? 'hecha' : ''} ${urge ? 'urge' : ''}">
     <button class="tk-chk" data-tk-chk="${i}" ${hayScript() ? '' : 'disabled'} title="${hecha ? 'Volver a abrir' : 'Marcar como hecha'}">${hecha ? ICO_CHECK : ''}</button>
     <div class="tk-b">
-      <div class="tk-a">${esc(p.ASUNTO)}</div>
-      ${has(p.DETALLE) ? `<div class="tk-d">${esc(p.DETALLE)}</div>` : ''}
+      <div class="tk-a ${has(p.DETALLE) ? 'con-det' : ''}" ${has(p.DETALLE) ? `data-tk-ver="${i}"` : ''}>${esc(p.ASUNTO)}${has(p.DETALLE) ? `<span class="tk-mas ${tareasAbiertas.has(claveTarea(p)) ? 'on' : ''}">›</span>` : ''}</div>
+      ${has(p.DETALLE) && tareasAbiertas.has(claveTarea(p)) ? `<div class="tk-d">${esc(p.DETALLE)}</div>` : ''}
       ${et && !hecha ? `<span class="tk-f ${urge ? 'urge' : pronto ? 'pronto' : ''}">${esc(et)}</span>` : ''}
     </div>
     ${hayScript() && !hecha ? `<button class="tk-ed" data-tk-ed="${i}" title="Editar">${ICO_LAPIZ}</button>` : ''}
@@ -1490,6 +1497,10 @@ $('#tareas').addEventListener('click', e => {
   if((b = t('[data-tk-chk]'))){
     const i = +b.dataset.tkChk, p = pendientes[i], hecha = !esHecha(p);
     cambiarTareas({accion:'estado', asunto:p.ASUNTO, creado:p.CREADO, hecha}, () => { pendientes[i] = {...p, ESTADO: hecha ? 'cerrado' : 'abierto'}; });
+  }
+  else if((b = t('[data-tk-ver]'))){
+    const k = claveTarea(pendientes[+b.dataset.tkVer]);
+    tareasAbiertas.has(k) ? tareasAbiertas.delete(k) : tareasAbiertas.add(k); pintarTareas();
   }
   else if(t('[data-tk-nueva]')){ tareaEdit = 'nueva'; pintarTareas(); }
   else if((b = t('[data-tk-ed]'))){ tareaEdit = +b.dataset.tkEd; pintarTareas(); }
