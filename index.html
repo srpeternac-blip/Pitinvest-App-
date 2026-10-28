@@ -225,6 +225,44 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .mr-n{flex:1 1 100%;font-size:12.5px;color:var(--tenue)}
 
 /* ---------- Pendientes ---------- */
+/* Tareas */
+.tk-h{align-items:center}
+.tk-h .tk-add{margin-left:auto;height:38px;font-size:14px}
+.tk-venc{color:var(--alarma);font-weight:700}
+.tk-card{padding:6px 0}
+.tk{display:flex;align-items:flex-start;gap:14px;padding:13px 20px;border-top:1px solid rgba(43,42,71,.5)}
+.tk-card > .tk:first-child,.tk-card > .tk-form:first-child + .tk{border-top:0}
+.tk-chk{flex:none;width:22px;height:22px;margin-top:1px;border-radius:6px;border:2px solid var(--tenue);background:transparent;
+  color:#0b0a18;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.tk-chk:hover:not(:disabled){border-color:var(--verde);background:rgba(74,222,128,.12)}
+.tk.urge .tk-chk{border-color:var(--alarma)}
+.tk.hecha .tk-chk{background:var(--verde);border-color:var(--verde)}
+.tk-chk:disabled{opacity:.45;cursor:default}
+.tk-b{flex:1;min-width:0}
+.tk-a{font-size:15px;font-weight:600;line-height:1.4}
+.tk-d{font-size:13px;color:var(--media);margin-top:3px;line-height:1.5}
+.tk-f{display:inline-block;margin-top:7px;font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:6px;
+  color:var(--media);border:1px solid var(--borde)}
+.tk-f.urge{color:var(--alarma);border-color:rgba(255,95,77,.5);background:rgba(255,95,77,.1)}
+.tk-f.pronto{color:var(--pos);border-color:rgba(247,184,60,.45)}
+.tk-ed{flex:none;background:transparent;border:0;color:var(--tenue);padding:4px;border-radius:6px;opacity:.7}
+.tk-ed:hover{color:var(--tinta);background:var(--alto);opacity:1}
+.tk.hecha .tk-a{text-decoration:line-through;color:var(--tenue);font-weight:500}
+.tk.hecha .tk-d{display:none}
+.tk-cab{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tenue);padding:10px 20px 8px}
+.tk-hechas .tk{padding:9px 20px}
+.tk-borrar{display:flex;align-items:center;gap:10px;justify-content:flex-end;padding:12px 20px 8px;border-top:1px solid rgba(43,42,71,.5);font-size:13.5px;color:var(--media)}
+.tk-borrar .tk-si{color:var(--alarma);border-color:rgba(255,95,77,.5)}
+.tk-vacio{padding:18px 20px}
+.tk-form{display:flex;flex-direction:column;gap:9px;padding:14px 20px;background:var(--banda);border-top:1px solid rgba(43,42,71,.5);border-bottom:1px solid rgba(43,42,71,.5)}
+.tk-in{width:100%;background:var(--panel);border:1px solid var(--borde);border-radius:9px;color:var(--tinta);font:inherit;font-size:14.5px;padding:10px 12px}
+.tk-in:focus,.tk-fecha input:focus{outline:none;border-color:var(--verde)}
+.tk-det{font-size:13.5px;resize:vertical}
+.tk-form-pie{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tk-fecha{font-size:13px;color:var(--media);display:flex;align-items:center;gap:8px}
+.tk-fecha input{background:var(--panel);border:1px solid var(--borde);border-radius:8px;color:var(--tinta);font:inherit;font-size:13px;padding:6px 8px;color-scheme:dark}
+.tk-sp{flex:1}
+.tk-save{height:36px;font-size:14px}
 .pd{display:flex;align-items:flex-start;gap:11px;padding:11px 2px;border-bottom:1px solid rgba(43,42,71,.5)}
 .pd:last-child{border-bottom:0}
 .pd-f{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:6px;flex:none;min-width:64px;text-align:center;
@@ -421,7 +459,7 @@ h4.sec:first-child{margin-top:0}
 
 @media(max-width:1180px){.semana{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:860px){
-  .shell{grid-template-columns:1fr}
+  .shell{grid-template-columns:minmax(0,1fr)}
   .menu{position:sticky;top:var(--hdr);z-index:28;height:auto;overflow:visible;border-right:0;border-bottom:1px solid var(--borde)}
   .menu-nav{flex-direction:row;overflow-x:auto;gap:4px;padding:9px 10px}
   .nv{width:auto;white-space:nowrap;padding:9px 13px}
@@ -536,6 +574,9 @@ h4.sec:first-child{margin-top:0}
     <h3>Ajustes</h3>
     <p>El calendario de resultados y la pestaña de Valoración salen de tu Cloudflare Worker, el mismo que usa PITrader App. Pega aquí su URL.</p>
     <input id="inpWorker" placeholder="https://....workers.dev">
+    <p style="margin-top:16px">Script del Sheet FICHAS EMPRESAS, para tachar, añadir y editar tareas desde aquí.</p>
+    <input id="inpScript" placeholder="https://script.google.com/macros/s/.../exec">
+    <input id="inpClave" placeholder="Clave del script" style="margin-top:8px">
     <div class="modal-foot">
       <button class="btn-mini" id="btnTest">Probar</button>
       <button class="btn" id="btnSave" style="padding:10px 20px">Guardar</button>
@@ -674,6 +715,9 @@ let semanasPedidas = new Set();
 let filtroEstado = 'todas', query = '', vista = 'agenda';
 let offCal = 0, offMacro = 0, offEv = 0;
 let workerUrl = localStorage.getItem(LS_WORKER) || '';
+const LS_SCRIPT = 'pitinvest_script_url', LS_CLAVE = 'pitinvest_script_clave';
+let scriptUrl = '', scriptClave = '';
+try{ scriptUrl = localStorage.getItem(LS_SCRIPT) || ''; scriptClave = localStorage.getItem(LS_CLAVE) || ''; }catch(e){}
 /* Botón TODOS del calendario: apagado = solo cartera y watchlist. Se recuerda. */
 let todos = localStorage.getItem(LS_TODOS) === '1';
 
@@ -911,6 +955,7 @@ async function cargar(){
   cargarSemana(0);
   cargarMacroSemana(0);
   cargarResultadosMios();
+  leerTareasVivas();
 }
 function mensajeError(e){
   const acceso = e && (e.message === 'ACCESO' || /HTTP 4|HTTP 5|Failed|NetworkError/i.test(e.message || ''));
@@ -1342,49 +1387,138 @@ function pintarAgenda(){
 }
 
 /* ═══════════ TAREAS PENDIENTES ═══════════
-   La pestaña PENDIENTES del Sheet, entera. La agenda solo muestra lo que vence
-   en los próximos días; aquí está todo, también lo que no tiene fecha. */
-function filaTarea(p, cerrada){
-  const urge = !cerrada && p.dias != null && p.dias <= 0;
-  const pronto = !cerrada && p.dias != null && p.dias > 0 && p.dias <= 2;
-  const et = cerrada ? 'hecho'
-    : p.dias == null ? 'sin fecha'
-    : p.dias < 0 ? 'vencido'
-    : p.dias === 0 ? 'hoy'
-    : fmtCorto(fechaDe(p.FECHA_LIMITE));
-  return `<div class="pd ${urge ? 'urge' : ''}">
-    <span class="pd-f ${urge ? 'urge' : (pronto ? 'pronto' : '')}">${esc(et)}</span>
-    <span class="pd-b"><span class="pd-a">${esc(p.ASUNTO)}</span>
-      ${has(p.DETALLE) ? `<span class="pd-d">${esc(p.DETALLE)}</span>` : ''}</span>
+   La pestaña PENDIENTES del Sheet. Se leen del CSV publicado y, si está puesto
+   el script del Sheet (engranaje), se leen y se escriben a través de él: así
+   lo que se tacha o se edita aquí queda en el Sheet y lo ven los chats. */
+let tareaEdit = null;        // null | 'nueva' | índice en pendientes
+let confirmaBorrar = false;
+let tareaError = '';
+const hayScript = () => !!(scriptUrl && scriptClave);
+const esHecha = (p) => (p.ESTADO || 'abierto').toLowerCase() === 'cerrado';
+
+async function tareasApi(datos){
+  const r = await fetch(scriptUrl, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({...datos, clave: scriptClave}), signal: AbortSignal.timeout(20000)});
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error || 'Error del script');
+  pendientes = j.tareas.map(t => ({FECHA_LIMITE:t.FECHA_LIMITE, ASUNTO:t.ASUNTO, DETALLE:t.DETALLE, ESTADO:t.ESTADO, CREADO:t.CREADO}));
+  try{ const c = JSON.parse(localStorage.getItem(LS) || 'null'); if(c){ c.pendientes = pendientes; localStorage.setItem(LS, JSON.stringify(c)); } }catch(e){}
+  return pendientes;
+}
+async function leerTareasVivas(){
+  if(!hayScript()) return;
+  try{ await tareasApi({accion:'leer'}); tareaError = ''; }
+  catch(e){ tareaError = 'No se pudo leer del script: ' + e.message; }
+  pintarTareas(); pintarAgenda();
+}
+/* Cambia en pantalla al momento y lo manda al Sheet; si falla, vuelve atrás */
+async function cambiarTareas(datos, local){
+  const antes = pendientes.map(p => ({...p}));
+  if(local) local();
+  tareaError = ''; pintarTareas(); pintarAgenda();
+  try{ await tareasApi(datos); }
+  catch(e){ pendientes = antes; tareaError = 'No se guardó: ' + e.message; }
+  pintarTareas(); pintarAgenda();
+}
+
+const ICO_LAPIZ = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const ICO_CHECK = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+function formTarea(p){
+  const fecha = p && /^\d{4}-\d{2}-\d{2}$/.test(p.FECHA_LIMITE || '') ? p.FECHA_LIMITE : '';
+  return `<form class="tk-form" data-tk-form="${p ? tareaEdit : 'nueva'}">
+    <input name="asunto" class="tk-in" placeholder="¿Qué hay que hacer?" value="${esc(p ? p.ASUNTO : '')}" required autocomplete="off">
+    <textarea name="detalle" class="tk-in tk-det" rows="2" placeholder="Detalle (opcional)">${esc(p ? p.DETALLE || '' : '')}</textarea>
+    <div class="tk-form-pie">
+      <label class="tk-fecha">Fecha límite <input type="date" name="fecha" value="${esc(fecha)}"></label>
+      <span class="tk-sp"></span>
+      <button type="button" class="btn-mini" data-tk-cancel="1">Cancelar</button>
+      <button type="submit" class="btn tk-save">Guardar</button>
+    </div>
+  </form>`;
+}
+function filaTarea(p, i){
+  if(tareaEdit === i) return formTarea(p);
+  const hecha = esHecha(p);
+  const urge = !hecha && p.dias != null && p.dias <= 0;
+  const pronto = !hecha && p.dias != null && p.dias > 0 && p.dias <= 2;
+  const et = p.dias == null ? '' : p.dias < 0 ? 'Vencida · ' + fmtCorto(fechaDe(p.FECHA_LIMITE))
+    : p.dias === 0 ? 'Hoy' : p.dias === 1 ? 'Mañana' : fmtCorto(fechaDe(p.FECHA_LIMITE));
+  return `<div class="tk ${hecha ? 'hecha' : ''} ${urge ? 'urge' : ''}">
+    <button class="tk-chk" data-tk-chk="${i}" ${hayScript() ? '' : 'disabled'} title="${hecha ? 'Volver a abrir' : 'Marcar como hecha'}">${hecha ? ICO_CHECK : ''}</button>
+    <div class="tk-b">
+      <div class="tk-a">${esc(p.ASUNTO)}</div>
+      ${has(p.DETALLE) ? `<div class="tk-d">${esc(p.DETALLE)}</div>` : ''}
+      ${et && !hecha ? `<span class="tk-f ${urge ? 'urge' : pronto ? 'pronto' : ''}">${esc(et)}</span>` : ''}
+    </div>
+    ${hayScript() && !hecha ? `<button class="tk-ed" data-tk-ed="${i}" title="Editar">${ICO_LAPIZ}</button>` : ''}
   </div>`;
 }
 function pintarTareas(){
-  const conDias = pendientes.map(p => ({...p, dias: diasHasta(p.FECHA_LIMITE)}));
-  const cerrada = (p) => (p.ESTADO || 'abierto').toLowerCase() === 'cerrado';
+  const el = $('#tareas'); if(!el) return;
+  const conDias = pendientes.map((p, i) => ({...p, i, dias: diasHasta(p.FECHA_LIMITE)}));
   const orden = (a,b) => (a.dias == null) - (b.dias == null) || (a.dias||0) - (b.dias||0);
-  const abiertas = conDias.filter(p => !cerrada(p)).sort(orden);
-  const hechas = conDias.filter(cerrada).sort(orden);
+  const abiertas = conDias.filter(p => !esHecha(p)).sort(orden);
+  const hechas = conDias.filter(esHecha);
   const vencidas = abiertas.filter(p => p.dias != null && p.dias <= 0).length;
 
-  $('#tareas').innerHTML = `
+  el.innerHTML = `
     <div class="espectro"></div>
-    <div class="scr-h"><div><h1>Tareas pendientes</h1>
-      <span class="rango">Decisiones abiertas${vencidas ? ` · ${vencidas} vencida${vencidas===1?'':'s'}` : ''}</span></div></div>
-
-    <div class="card">
-      <div class="card-cab">Abiertas ${abiertas.length?`<span class="cnt">${abiertas.length}</span>`:''}</div>
-      <div class="card-cuerpo">${abiertas.length
-        ? abiertas.map(p => filaTarea(p, false)).join('')
-        : (pendientes.length
-            ? '<div class="vacio">Nada abierto.</div>'
-            : '<div class="vacio">Pendiente de registrar: la pestaña PENDIENTES del Sheet está vacía.</div>')}</div>
+    <div class="scr-h tk-h"><div><h1>Tareas pendientes</h1>
+      <span class="rango">${abiertas.length} abierta${abiertas.length===1?'':'s'}${vencidas ? ` · <b class="tk-venc">${vencidas} vencida${vencidas===1?'':'s'}</b>` : ''}</span></div>
+      ${hayScript() ? '<button class="btn tk-add" data-tk-nueva="1">+ Añadir</button>' : ''}</div>
+    ${!hayScript() ? '<div class="err">Para tachar, añadir y editar tareas falta conectar el script del Sheet: pulsa el engranaje de arriba.</div>' : ''}
+    ${tareaError ? `<div class="err">${esc(tareaError)}</div>` : ''}
+    <div class="card tk-card">
+      ${tareaEdit === 'nueva' ? formTarea(null) : ''}
+      ${abiertas.length ? abiertas.map(p => filaTarea(p, p.i)).join('')
+        : '<div class="vacio tk-vacio">Nada pendiente. 👌</div>'}
     </div>
-
-    ${hechas.length ? `<div class="card">
-      <div class="card-cab">Cerradas <span class="cnt">${hechas.length}</span></div>
-      <div class="card-cuerpo">${hechas.map(p => filaTarea(p, true)).join('')}</div>
+    ${hechas.length ? `<div class="card tk-card tk-hechas">
+      <div class="tk-cab">Completadas <span class="cnt">${hechas.length}</span></div>
+      ${hechas.map(p => filaTarea(p, p.i)).join('')}
+      ${hayScript() ? `<div class="tk-borrar">${confirmaBorrar
+        ? `<span>¿Borrar las ${hechas.length} completadas del Sheet?</span><button class="btn-mini" data-tk-noborrar="1">No</button><button class="btn-mini tk-si" data-tk-siborrar="1">Sí, borrar</button>`
+        : '<button class="btn-mini" data-tk-borrar="1">Borrar completadas</button>'}</div>` : ''}
     </div>` : ''}`;
+  const foco = el.querySelector('.tk-form input[name=asunto]');
+  if(foco && document.activeElement?.closest?.('.tk-form') == null) foco.focus();
 }
+$('#tareas').addEventListener('click', e => {
+  const t = (sel) => e.target.closest(sel);
+  let b;
+  if((b = t('[data-tk-chk]'))){
+    const i = +b.dataset.tkChk, p = pendientes[i], hecha = !esHecha(p);
+    cambiarTareas({accion:'estado', asunto:p.ASUNTO, creado:p.CREADO, hecha}, () => { pendientes[i] = {...p, ESTADO: hecha ? 'cerrado' : 'abierto'}; });
+  }
+  else if(t('[data-tk-nueva]')){ tareaEdit = 'nueva'; pintarTareas(); }
+  else if((b = t('[data-tk-ed]'))){ tareaEdit = +b.dataset.tkEd; pintarTareas(); }
+  else if(t('[data-tk-cancel]')){ tareaEdit = null; pintarTareas(); }
+  else if(t('[data-tk-borrar]')){ confirmaBorrar = true; pintarTareas(); }
+  else if(t('[data-tk-noborrar]')){ confirmaBorrar = false; pintarTareas(); }
+  else if(t('[data-tk-siborrar]')){
+    confirmaBorrar = false;
+    cambiarTareas({accion:'borrarCompletadas'}, () => { pendientes = pendientes.filter(p => !esHecha(p)); tareaEdit = null; });
+  }
+});
+$('#tareas').addEventListener('submit', e => {
+  const f = e.target.closest('.tk-form'); if(!f) return;
+  e.preventDefault();
+  const d = Object.fromEntries(new FormData(f));
+  const nuevo = {FECHA_LIMITE: d.fecha || '', ASUNTO: d.asunto.trim(), DETALLE: d.detalle.trim()};
+  if(!nuevo.ASUNTO) return;
+  const datos = {nuevoAsunto: nuevo.ASUNTO, detalle: nuevo.DETALLE, fecha: nuevo.FECHA_LIMITE};
+  if(tareaEdit === 'nueva'){
+    tareaEdit = null;
+    cambiarTareas({...datos, accion:'nueva'}, () => { pendientes = [...pendientes, {...nuevo, ESTADO:'abierto', CREADO: hoyISO()}]; });
+  }else{
+    const i = tareaEdit, p = pendientes[i]; tareaEdit = null;
+    cambiarTareas({...datos, accion:'editar', asunto:p.ASUNTO, creado:p.CREADO}, () => { pendientes[i] = {...p, ...nuevo}; });
+  }
+});
+$('#tareas').addEventListener('keydown', e => {
+  if(e.key === 'Escape' && tareaEdit !== null){ tareaEdit = null; pintarTareas(); }
+});
 
 /* ═══════════ CALENDARIO ═══════════ */
 function pintarCalendario(){
@@ -2113,12 +2247,15 @@ function renderA(){
 }
 
 /* ═══════════ Ajustes ═══════════ */
-function abrirModal(){ $('#inpWorker').value = workerUrl; $('#testRes').textContent = ''; $('#modal').classList.add('open'); }
+function abrirModal(){ $('#inpWorker').value = workerUrl; $('#inpScript').value = scriptUrl; $('#inpClave').value = scriptClave; $('#testRes').textContent = ''; $('#modal').classList.add('open'); }
 $('#btnCfg').addEventListener('click', abrirModal);
 $('#modal').addEventListener('click', e => { if(e.target === e.currentTarget) $('#modal').classList.remove('open'); });
 $('#btnSave').addEventListener('click', () => {
   workerUrl = $('#inpWorker').value.trim().replace(/\/+$/,'');
   localStorage.setItem(LS_WORKER, workerUrl);
+  scriptUrl = $('#inpScript').value.trim(); scriptClave = $('#inpClave').value.trim();
+  try{ localStorage.setItem(LS_SCRIPT, scriptUrl); localStorage.setItem(LS_CLAVE, scriptClave); }catch(e){}
+  leerTareasVivas();
   $('#modal').classList.remove('open');
   semanasPedidas.clear(); resultados = {}; macroApi = {};
   cargarSemana(offCal); cargarMacroSemana(offMacro); cargarResultadosMios();
