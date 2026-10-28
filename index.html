@@ -2300,7 +2300,7 @@ const PITRADER = 'https://srpeternac-blip.github.io/PITrader-app/';
 function abrirPitrader(v){
   const sec = $('#view-' + v);
   if(sec && !sec.querySelector('iframe'))
-    sec.innerHTML = `<iframe src="${PITRADER}?embed=${v.slice(3)}" title="${v}" loading="lazy"></iframe>`;
+    sec.innerHTML = `<iframe src="${PITRADER}?embed=${v.slice(3)}" title="${v}"></iframe>`;
 }
 function irA(v){
   vista = v;
