@@ -68,7 +68,11 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .search .mag{color:var(--tenue)}
 .search .clr{color:var(--tenue);font-size:18px;padding:4px}
 /* Las carteras, como botones encima de la lista de empresas */
-.filters{display:flex;flex-wrap:wrap;gap:5px;padding:11px 10px 10px;border-bottom:1px solid var(--borde);flex:none}
+.fl-top{padding:10px 10px 10px;border-bottom:1px solid var(--borde);flex:none;display:flex;flex-direction:column;gap:9px}
+.fl-top .search{padding:0 9px}
+.fl-top .search input{padding:8px 0;font-size:13px}
+.filters{display:flex;flex-wrap:wrap;gap:5px}
+.fpanel{display:none!important}
 .fsub{padding:5px 10px;border-radius:7px;border:1px solid var(--borde);background:var(--panel);color:var(--media);font-size:12.5px}
 .fsub:hover{color:var(--tinta);border-color:var(--tenue)}
 .fsub.on{background:rgba(247,184,60,.1);border-color:rgba(247,184,60,.5);color:var(--pos);font-weight:700}
@@ -232,6 +236,49 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
   .mc-c-tick,.mc-c-inv,.mc-acts,.mc-h.mc-c-tick,.mc-h.mc-c-inv{display:none!important}
   .mc-c-pl b{display:none}
 }
+/* Rendimiento */
+.rd-tabs{margin-bottom:16px}
+.rd-sec{font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--pos);margin:22px 2px 10px}
+.rd-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.rd-kpi{background:var(--panel);border:1px solid var(--borde);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}
+.rd-kpi > span{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue)}
+.rd-kpi b{font-family:var(--mono);font-size:20px;font-weight:700}
+.rd-kpi em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--media)}
+#rend .pos{color:var(--verde)} #rend .neg{color:var(--alarma)}
+.rd-g4{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.rd-g4 .card,.rd-g2 .card{margin-bottom:0}
+.rd-g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:13px}
+.rd-donut{display:flex;align-items:center;gap:16px}
+.rd-donut svg{flex:none}
+.rd-leys{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.rd-ley{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--media)}
+.rd-ley i{width:9px;height:9px;border-radius:2px;flex:none}
+.rd-ley span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rd-ley b{font-family:var(--mono);font-size:12px;color:var(--tinta)}
+.rd-dc{fill:var(--tinta);font-family:var(--mono);font-size:13px;font-weight:700}
+.rd-tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--tenue);border:1px solid var(--borde);border-radius:5px;padding:1px 6px;text-transform:uppercase}
+.rd-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 5px 0 10px}
+.rd-per{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.rd-per div{display:flex;flex-direction:column;gap:1px}
+.rd-per div > span{font-family:var(--mono);font-size:10.5px;color:var(--tenue);font-weight:700;letter-spacing:.08em}
+.rd-per b{font-family:var(--mono);font-size:18px}
+.rd-per em{font-style:normal;font-family:var(--mono);font-size:11.5px;color:var(--tenue)}
+.rd-svg{width:100%;height:auto;display:block}
+.rd-grid{stroke:rgba(255,255,255,.06)} .rd-cero{stroke:rgba(255,255,255,.22);stroke-dasharray:3 3}
+.rd-ax{fill:var(--tenue);font-family:var(--mono);font-size:10px}
+.rd-hb{display:flex;flex-direction:column;gap:6px}
+.rd-hbf{display:grid;grid-template-columns:80px 1fr 90px;gap:10px;align-items:center;font-size:12.5px}
+.rd-hbn{font-family:var(--mono);color:var(--pos);font-weight:700}
+.rd-hbt{height:10px;background:var(--banda);border-radius:3px;overflow:hidden}
+.rd-hbt i{display:block;height:100%;border-radius:3px}
+.rd-hbf b{font-family:var(--mono);font-size:12.5px;text-align:right}
+.b-pos{background:var(--verde)} .b-neg{background:var(--alarma)}
+.rd-bm{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
+.rd-bmc{display:flex;flex-direction:column;align-items:center;gap:4px;font-family:var(--mono);font-size:10.5px;color:var(--tenue)}
+.rd-bmz{position:relative;width:100%}
+.rd-bmz i{position:absolute;left:18%;right:18%;border-radius:3px}
+.rd-bm0{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.18)}
+@media(max-width:700px){.rd-g2{grid-template-columns:1fr}.rd-per{grid-template-columns:repeat(2,1fr)}.rd-donut{flex-direction:column;align-items:stretch}.rd-donut svg{align-self:center}}
 .scr-h{display:flex;align-items:flex-end;gap:16px;margin-bottom:20px;flex-wrap:wrap}
 .wknav{display:flex;align-items:center;gap:6px;margin-left:auto}
 .wkb{border:1px solid var(--borde);background:var(--panel);border-radius:9px;color:var(--media);padding:8px 13px;font-size:14px}
@@ -584,6 +631,7 @@ h4.sec:first-child{margin-top:0}
   <nav class="menu">
     <div class="menu-nav">
       <button class="nv" data-view="micartera"><span class="mk"></span>Mi Cartera</button>
+      <button class="nv" data-view="rend"><span class="mk"></span>Rendimiento</button>
       <button class="nv" data-view="eventos"><span class="mk"></span>Eventos de cartera</button>
       <button class="nv on" data-view="agenda"><span class="mk"></span>Agenda del día</button>
       <div class="nv-sep"></div>
@@ -601,11 +649,6 @@ h4.sec:first-child{margin-top:0}
 
     <div class="fpanel" id="fpanel">
       <div class="fp-top">
-        <div class="search">
-          <span class="mag">⌕</span>
-          <input id="q" placeholder="Buscar empresa" autocomplete="off" spellcheck="false">
-          <button class="clr" id="clr" hidden>×</button>
-        </div>
       </div>
     </div>
     <!-- En escritorio, Dividendos y Tareas van debajo del submenú de Fichas -->
@@ -622,6 +665,7 @@ h4.sec:first-child{margin-top:0}
     <section class="view" id="view-macro"><div class="wrap" id="macroV"></div></section>
     <section class="view" id="view-tareas"><div class="wrap" id="tareas"></div></section>
     <section class="view" id="view-micartera"><div class="wrap ancho" id="micartera"></div></section>
+    <section class="view" id="view-rend"><div class="wrap ancho" id="rend"></div></section>
     <section class="view pt-view" id="view-pt-dividendos"></section>
     <section class="view pt-view" id="view-pt-insiders"></section>
     <section class="view pt-view" id="view-pt-busqueda"></section>
@@ -629,7 +673,14 @@ h4.sec:first-child{margin-top:0}
     <section class="view" id="view-fichas">
       <div class="fsplit" id="fsplit">
         <aside class="flista">
-          <div class="filters" id="fEstado"></div>
+          <div class="fl-top">
+            <div class="search">
+              <span class="mag">⌕</span>
+              <input id="q" placeholder="Buscar empresa" autocomplete="off" spellcheck="false">
+              <button class="clr" id="clr" hidden>×</button>
+            </div>
+            <div class="filters" id="fEstado"></div>
+          </div>
           <button class="lhead" id="lhead" title="Ordenar"></button>
           <div class="list" id="list"><div class="lempty"><span class="spin"></span></div></div>
         </aside>
@@ -1629,7 +1680,7 @@ $('#tareas').addEventListener('keydown', e => {
 const MC_TABS = ['SWING','OPCIONES','QF','CORE'];
 const MC_XMAP = {lon:'.L',lse:'.L',epa:'.PA',ams:'.AS',bru:'.BR',asx:'.AX',tse:'.TO',tsx:'.TO',cve:'.V',bit:'.MI',xetr:'.DE',fra:'.F',bme:'.MC',swx:'.SW',hkex:'.HK',tyo:'.T',nse:'.NS',bse:'.BO'};
 const MC_MKT = [{n:'S&P 500',s:'ES=F'},{n:'Nasdaq',s:'NQ=F'},{n:'Russell',s:'RTY=F'},{n:'VIX',s:'^VIX'},{n:'Oro',s:'GC=F'},{n:'WTI',s:'CL=F'},{n:'Bitcoin',s:'BTC-USD'}];
-let mcPos = [], mcTot = {}, mcOk = false, mcCargando = false, mcError = '';
+let mcRaw = {}, mcPos = [], mcTot = {}, mcOk = false, mcCargando = false, mcError = '';
 let mcPort = 'ALL', mcSort = {col:'peso', dir:'desc'}, mcSecSort = {col:'peso', dir:'desc'}, mcSecOpen = {};
 let mcMetrics = {}, mcInsiders = {}, mcPrimas = {}, mcPrimasTs = 0, mcMercado = null;
 try{ mcPort = localStorage.getItem('pitinvest_mc_port') || 'ALL'; }catch(e){}
@@ -1701,7 +1752,7 @@ async function cargarMiCartera(forzar){
       fetch(workerUrl.replace(/\/+$/, '') + '/sheet?tab=' + tab, {signal: AbortSignal.timeout(20000)})
         .then(r => { if(!r.ok) throw new Error(tab + ' ' + r.status); return r.text(); }).then(txt => ({tab, txt}))));
     mcPos = []; mcTot = {};
-    for(const {tab, txt} of res){ const p = mcPestana(txt, tab); mcPos.push(...p.pos); mcTot[tab] = {...(p.tot || {}), cash:p.cash}; }
+    for(const {tab, txt} of res){ mcRaw[tab] = txt; const p = mcPestana(txt, tab); mcPos.push(...p.pos); mcTot[tab] = {...(p.tot || {}), cash:p.cash}; }
     if(!mcPos.length) throw new Error('sin posiciones en las pestañas');
     // En el SWING 2026 algunos tickers van sin bolsa (WHC, C7A0…): la bolsa se toma de su ficha
     mcPos.forEach(p => {
@@ -1922,6 +1973,250 @@ $('#micartera').addEventListener('click', e => {
     const [tk, port] = b.dataset.mcIr.split('|'), p = mcPos.find(x => x.t === tk && x.port === port), f = p && mcFichaDe(p);
     if(f) irAFicha(f.TICKER); else analizar(tk);
   }
+});
+
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+/* ═══════════ RENDIMIENTO ═══════════
+   Análisis de la cartera, por pestañas. Usa lo que ya carga Mi Cartera (las
+   cuatro pestañas del SWING 2026) más RESUMEN, P&G y TIR del mismo archivo,
+   el país de cada empresa (Yahoo, guardado 30 días) y un año de precios para
+   la simulación con las posiciones de hoy. Gráficos en SVG, sin librerías. */
+const RD_TABS = [['ALL','Cartera completa'],['SWING','Swing'],['OPCIONES','Opciones'],['CORE','Core'],['QF','QF']];
+const RD_USD = {SWING:true, CORE:true};        // pestañas que el Sheet lleva en dólares
+const RD_COL = ['#f7b83c','#6fb4ff','#4ade80','#a78bfa','#ff9f45','#2dd4bf','#f472b6','#ff5f4d','#facc15','#94a3b8','#38bdf8','#c084fc'];
+let rdTab = 'ALL', rdExtra = null, rdEurUsd = null, rdPais = {}, rdHist = {}, rdCargando = false, rdHistListo = false;
+try{ rdTab = localStorage.getItem('pitinvest_rd_tab') || 'ALL'; rdPais = JSON.parse(localStorage.getItem('pitinvest_pais') || '{}'); }catch(e){}
+
+const rdFilas = (txt) => String(txt || '').split('\n').map(mcLinea);
+async function rdHoja(tab){
+  const u = workerUrl.replace(/\/+$/, '') + '/sheet?tab=';
+  let r = await fetch(u + encodeURIComponent(tab));
+  if(!r.ok && tab.includes('&')) r = await fetch(u + encodeURIComponent(tab.replace('&', '\\x26')));
+  return r.ok ? r.text() : '';
+}
+/* Lo que no son posiciones: RESUMEN, P&G realizadas por mes, margen de IBKR y palanca de QF */
+async function rdCargarExtra(){
+  const [res, pyg] = await Promise.all([rdHoja('RESUMEN'), rdHoja('P&G')]);
+  const ex = {};
+  const R = rdFilas(res);
+  const fila = (rows, txt) => rows.find(r => r.some(c => c.toUpperCase() === txt));
+  const tot = fila(R, 'TOTAL CARTERA'); if(tot){ const v = tot.filter(c => c); ex.capInicial = mcDinero(v[1]); ex.capActual = mcDinero(v[2]); ex.pyg = mcDinero(v[3]); ex.rent = mcNum(v[4]); }
+  const real = R.find(r => r.some(c => c.toUpperCase() === 'TOTAL') && r.some(c => /%/.test(c)));
+  if(real){ const v = real.filter(c => c); ex.realizadas = mcDinero(v[1]); ex.realizadasPct = mcNum(v[2]); }
+  const P = rdFilas(pyg), MES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const cab = P.findIndex(r => r.includes('ENERO') && r.includes('FEBRERO'));
+  if(cab >= 0){
+    const c0 = P[cab].indexOf('ENERO');
+    const serie = (r) => r ? MES.map((_, i) => mcDinero(r[c0 + i])) : null;
+    const tras = (txt) => { for(let i = cab + 1; i < P.length; i++) if((P[i][1] || '').toUpperCase().includes(txt)) return P[i]; return null; };
+    ex.meses = {ibkr: serie(tras('INTERACTIVE')), qf: serie(tras('QUANTFURY')), total: serie(tras('P&G TOTAL'))};
+  }
+  // Margen de IBKR (SWING) y palanca de QF: fila de títulos y la de valores debajo
+  const margen = (txt, claves) => {
+    const rows = rdFilas(txt), o = {};
+    for(let i = 0; i < rows.length - 1; i++){
+      claves.forEach(k => { const c = rows[i].findIndex(x => x.toUpperCase().trim() === k); if(c >= 0 && rows[i+1][c]) o[k] = rows[i+1][c]; });
+    }
+    return o;
+  };
+  ex.ibkr = margen(mcRaw.SWING, ['NET LIQ','EXCESS LIQ','PALANCA','COLCHÓN']);
+  ex.qf = margen(mcRaw.QF, ['CUENTA','PODER','DISPONIBLE','PALANCA']);
+  rdExtra = ex;
+}
+async function rdCargarPaises(){
+  const faltan = [...new Set(mcPos.map(p => p.t))].filter(t => !rdPais[t] || Date.now() - rdPais[t].ts > 30*86400000);
+  await mcPool(faltan, 8, async (t) => {
+    try{ const j = await api('/summary/' + encodeURIComponent(t) + '?modules=assetProfile');
+      const c = j?.quoteSummary?.result?.[0]?.assetProfile?.country; if(c) rdPais[t] = {c, ts:Date.now()}; }catch(e){}
+  });
+  try{ localStorage.setItem('pitinvest_pais', JSON.stringify(rdPais)); }catch(e){}
+}
+async function rdCargarHistoria(){
+  const ts = [...new Set(mcPos.filter(p => p.port !== 'OPCIONES').map(p => p.t)), 'SPY'];
+  await mcPool(ts.filter(t => !rdHist[t]), 10, async (t) => {
+    try{ const j = await api('/chart/' + encodeURIComponent(t) + '?range=1y&interval=1d');
+      const r0 = j?.chart?.result?.[0], tss = r0?.timestamp || [], c = r0?.indicators?.quote?.[0]?.close || [];
+      const m = {}; tss.forEach((x, i) => { if(c[i] != null) m[new Date(x*1000).toISOString().slice(0,10)] = c[i]; });
+      rdHist[t] = m; }catch(e){}
+  });
+  rdHistListo = true;
+}
+async function cargarRendimiento(){
+  if(!workerUrl){ pintarRendimiento(); return; }
+  if(rdCargando) return; rdCargando = true; pintarRendimiento();
+  if(!mcOk){ await cargarMiCartera(); while(mcCargando) await new Promise(r => setTimeout(r, 300)); }
+  if(!mcOk){ rdCargando = false; pintarRendimiento(); return; }
+  try{ const j = await api('/chart/EURUSD=X?range=5d&interval=1d'); rdEurUsd = j?.chart?.result?.[0]?.meta?.regularMarketPrice || null; }catch(e){}
+  try{ await rdCargarExtra(); }catch(e){}
+  rdCargando = false; pintarRendimiento();
+  await rdCargarPaises(); if(vista === 'rend') pintarRendimiento();
+  await rdCargarHistoria(); if(vista === 'rend') pintarRendimiento();
+}
+
+/* —— Gráficos —— */
+function svgDonut(items, opts = {}){
+  const tot = items.reduce((a, x) => a + x.v, 0) || 1, R = 54, r = 34, cx = 64, cy = 64; let a0 = -Math.PI/2;
+  const arcos = items.map((x, i) => {
+    const a1 = a0 + x.v/tot * Math.PI*2, gr = a1 - a0 > Math.PI ? 1 : 0;
+    const p = (rad, ang) => [cx + rad*Math.cos(ang), cy + rad*Math.sin(ang)].map(n => n.toFixed(2)).join(' ');
+    const d = items.length === 1 ? `M${cx} ${cy-R}A${R} ${R} 0 1 1 ${cx-0.01} ${cy-R}L${cx-0.01} ${cy-r}A${r} ${r} 0 1 0 ${cx} ${cy-r}Z`
+      : `M${p(R,a0)}A${R} ${R} 0 ${gr} 1 ${p(R,a1)}L${p(r,a1)}A${r} ${r} 0 ${gr} 0 ${p(r,a0)}Z`;
+    a0 = a1; return `<path d="${d}" fill="${x.col || RD_COL[i % RD_COL.length]}"><title>${esc(x.n)} · ${(x.v/tot*100).toFixed(1)}%</title></path>`;
+  }).join('');
+  const ley = items.map((x, i) => `<div class="rd-ley"><i style="background:${x.col || RD_COL[i % RD_COL.length]}"></i><span>${esc(x.n)}</span><b>${(x.v/tot*100).toFixed(1)}%</b></div>`).join('');
+  return `<div class="rd-donut"><svg viewBox="0 0 128 128" width="128" height="128">${arcos}${opts.centro ? `<text x="64" y="69" text-anchor="middle" class="rd-dc">${esc(opts.centro)}</text>` : ''}</svg><div class="rd-leys">${ley}</div></div>`;
+}
+function svgLineas(series, alto = 260){
+  const W = 1000, H = alto, pad = {l:44, r:12, t:12, b:24};
+  const todos = series.flatMap(s => s.p.map(x => x[1])); if(!todos.length) return '';
+  let mn = Math.min(...todos), mx = Math.max(...todos); const m = (mx - mn) * .08 || 1; mn -= m; mx += m;
+  const n = series[0].p.length, X = (i) => pad.l + i/(n-1) * (W - pad.l - pad.r), Y = (v) => pad.t + (1 - (v-mn)/(mx-mn)) * (H - pad.t - pad.b);
+  const ejes = [0, .25, .5, .75, 1].map(f => { const v = mn + (mx-mn)*f;
+    return `<line x1="${pad.l}" x2="${W-pad.r}" y1="${Y(v)}" y2="${Y(v)}" class="rd-grid"/><text x="${pad.l-6}" y="${Y(v)+4}" text-anchor="end" class="rd-ax">${(v-100).toFixed(0)}%</text>`; }).join('');
+  const meses = []; let prev = '';
+  series[0].p.forEach((x, i) => { const mm = x[0].slice(0,7); if(mm !== prev && i){ meses.push(`<text x="${X(i)}" y="${H-6}" text-anchor="middle" class="rd-ax">${cap(MESES[+mm.slice(5)-1].slice(0,3))}</text>`); } prev = mm; });
+  const lineas = series.map(s => `<polyline fill="none" stroke="${s.col}" stroke-width="${s.w || 2}" stroke-linejoin="round" points="${s.p.map((x, i) => X(i).toFixed(1) + ',' + Y(x[1]).toFixed(1)).join(' ')}"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="rd-svg">${ejes}<line x1="${pad.l}" x2="${W-pad.r}" y1="${Y(100)}" y2="${Y(100)}" class="rd-cero"/>${meses.join('')}${lineas}</svg>`;
+}
+function barrasH(items, fmt){
+  const mx = Math.max(...items.map(x => Math.abs(x.v)), 1);
+  return `<div class="rd-hb">${items.map(x => `<div class="rd-hbf"><span class="rd-hbn">${esc(x.n)}</span>
+    <span class="rd-hbt"><i class="${x.v >= 0 ? 'b-pos' : 'b-neg'}" style="width:${Math.abs(x.v)/mx*100}%"></i></span><b class="${x.v >= 0 ? 'pos' : 'neg'}">${fmt(x.v)}</b></div>`).join('')}</div>`;
+}
+function barrasMes(vals, etiquetas){
+  const mx = Math.max(...vals.map(v => Math.abs(v || 0)), 1), H = 150, mid = H/2;
+  return `<div class="rd-bm">${vals.map((v, i) => { const h = Math.abs(v || 0)/mx*(mid - 8);
+    return `<div class="rd-bmc" title="${esc(etiquetas[i])}: ${v == null ? '—' : Math.round(v).toLocaleString('es-ES') + ' €'}">
+      <div class="rd-bmz" style="height:${H}px"><i class="${(v || 0) >= 0 ? 'b-pos' : 'b-neg'}" style="height:${h}px;${(v || 0) >= 0 ? `bottom:${mid}px` : `top:${mid}px`}"></i><span class="rd-bm0" style="top:${mid}px"></span></div>
+      <span>${esc(etiquetas[i])}</span></div>`; }).join('')}</div>`;
+}
+
+/* —— Cálculos —— */
+function rdPosiciones(tab){
+  const lista = tab === 'ALL' ? mcPos : mcPos.filter(p => p.port === tab);
+  const fx = (p) => RD_USD[p.port] ? 1/(rdEurUsd || 1.08) : 1;       // a euros
+  return lista.map(p => { const val = ((p.inv || 0) + (mcPlVivo(p)?.eur ?? p.pl ?? 0));
+    return {...p, valEur: Math.max(0, val) * fx(p), plEur: (mcPlVivo(p)?.eur ?? p.pl ?? 0) * fx(p), invEur: (p.inv || 0) * fx(p)}; });
+}
+function rdPesos(ps, tab){
+  if(tab !== 'ALL' && ps.some(p => p.peso != null)) { const s = ps.reduce((a, p) => a + (p.peso || 0), 0) || 1; return ps.map(p => ({...p, w:(p.peso || 0)/s})); }
+  const s = ps.reduce((a, p) => a + p.valEur, 0) || 1; return ps.map(p => ({...p, w:p.valEur/s}));
+}
+const rdDivisa = (t) => /\.AX$/.test(t) ? 'AUD' : /\.L$/.test(t) ? 'GBP' : /\.(PA|F|DE|AS|MC|MI|BR)$/.test(t) ? 'EUR' : /\.(TO|V)$/.test(t) ? 'CAD' : /\.HK$/.test(t) ? 'HKD' : /\.T$/.test(t) ? 'JPY' : 'USD';
+const RD_PAIS = {'United States':'EE. UU.','Australia':'Australia','France':'Francia','Canada':'Canadá','United Kingdom':'Reino Unido','China':'China','Germany':'Alemania',
+  'Italy':'Italia','Spain':'España','Japan':'Japón','Kazakhstan':'Kazajistán','Ireland':'Irlanda','Netherlands':'Países Bajos','Switzerland':'Suiza','Hong Kong':'Hong Kong',
+  'Brazil':'Brasil','Mexico':'México','Bermuda':'Bermudas','Israel':'Israel','Argentina':'Argentina','Uruguay':'Uruguay','Norway':'Noruega','Singapore':'Singapur','Taiwan':'Taiwán'};
+function agrupar(ps, clave, max = 8){
+  const g = {}; ps.forEach(p => { const k = clave(p) || '—'; g[k] = (g[k] || 0) + p.w; });
+  let it = Object.entries(g).map(([n, v]) => ({n, v})).sort((a, b) => b.v - a.v);
+  if(it.length > max){ const resto = it.slice(max-1).reduce((a, x) => a + x.v, 0); it = [...it.slice(0, max-1), {n:'Otros', v:resto}]; }
+  return it;
+}
+/* Cartera simulada: posiciones de hoy con sus pesos, un año de precios */
+function rdSimulada(ps){
+  const conH = ps.filter(p => p.port !== 'OPCIONES' && rdHist[p.t] && Object.keys(rdHist[p.t]).length > 30);
+  const spy = rdHist.SPY; if(!conH.length || !spy) return null;
+  const fechas = Object.keys(spy).sort(); const sw = conH.reduce((a, p) => a + p.w, 0) || 1;
+  const ult = {}; let base = null; const serie = [], spySerie = [];
+  fechas.forEach(f => {
+    let v = 0; conH.forEach(p => { const c = rdHist[p.t][f]; if(c != null) ult[p.t] = c; });
+    if(!base){ if(conH.every(p => ult[p.t] != null)) base = {...ult}; else return; }
+    conH.forEach(p => { v += p.w/sw * (ult[p.t] ?? base[p.t]) / base[p.t]; });
+    serie.push([f, v*100]); spySerie.push([f, spy[f]]);
+  });
+  if(serie.length < 20) return null;
+  const s0 = spySerie[0][1]; spySerie.forEach(x => x[1] = x[1]/s0*100);
+  const ret = (s, d) => { const i = Math.max(0, s.length - 1 - d); return s[s.length-1][1]/s[i][1] - 1; };
+  const ini = new Date().getFullYear() + '-01-01', iy = serie.findIndex(x => x[0] >= ini);
+  const ytd = (s) => iy >= 0 ? s[s.length-1][1]/s[Math.max(0, iy-1)][1] - 1 : null;
+  const rets = (s) => s.slice(1).map((x, i) => x[1]/s[i][1] - 1);
+  const rc = rets(serie), rs = rets(spySerie), med = (a) => a.reduce((x, y) => x + y, 0)/a.length;
+  const mc = med(rc), ms = med(rs);
+  const cov = med(rc.map((x, i) => (x - mc)*(rs[i] - ms))), vs = med(rs.map(x => (x - ms)**2)), vc = med(rc.map(x => (x - mc)**2));
+  let pico = 0, dd = 0; serie.forEach(x => { pico = Math.max(pico, x[1]); dd = Math.min(dd, x[1]/pico - 1); });
+  return {serie, spySerie, cubre: sw,
+    per: [['1S',5],['1M',21],['3M',63]].map(([n, d]) => ({n, c:ret(serie, d), s:ret(spySerie, d)})).concat([{n:'Año', c:ytd(serie), s:ytd(spySerie)}]),
+    vol: Math.sqrt(vc*252), beta: vs ? cov/vs : null, dd};
+}
+
+function pintarRendimiento(){
+  const el = $('#rend'); if(!el) return;
+  const pc = (x, d = 1) => x == null ? '—' : `<span class="${x >= 0 ? 'pos' : 'neg'}">${(x > 0 ? '+' : '') + (x*100).toFixed(d)}%</span>`;
+  const eur = (x) => x == null ? '—' : Math.round(x).toLocaleString('es-ES') + ' €';
+  const cab = `<div class="espectro"></div><div class="scr-h"><div><h1>Rendimiento</h1></div>
+    <button class="btn-mini mc-ref" data-rd-ref="1">${rdCargando ? '<span class="spin"></span>' : 'Actualizar'}</button></div>
+    <div class="mc-tabs rd-tabs">${RD_TABS.map(([k, l]) => `<button class="mc-tab ${rdTab === k ? 'on' : ''}" data-rd-tab="${k}">${l}</button>`).join('')}</div>`;
+  if(!workerUrl){ el.innerHTML = cab + '<div class="err">Falta la URL del worker (engranaje de arriba).</div>'; return; }
+  if(!mcOk){ el.innerHTML = cab + (mcError ? `<div class="err">${esc(mcError)}</div>` : '<div class="card"><div class="card-cuerpo"><span class="spin"></span></div></div>'); return; }
+
+  const ps = rdPesos(rdPosiciones(rdTab), rdTab), tot = rdTab === 'ALL' ? null : mcTot[rdTab] || {};
+  const mon = (v) => v == null ? '—' : RD_USD[rdTab] ? '$' + Math.round(v).toLocaleString('es-ES') : eur(v);
+  // Resumen
+  const inv = rdTab === 'ALL' ? ps.reduce((a, p) => a + p.invEur, 0) : tot.inv;
+  const act = rdTab === 'ALL' ? ps.reduce((a, p) => a + p.valEur, 0) : tot.act;
+  const pl = rdTab === 'ALL' ? ps.reduce((a, p) => a + p.plEur, 0) : tot.pl;
+  const plp = rdTab === 'ALL' ? (inv ? pl/inv : null) : tot.pct;
+  const kpi = (n, v, sub = '') => `<div class="rd-kpi"><span>${n}</span><b>${v}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
+  const kpis = [
+    kpi('Valor', rdTab === 'ALL' ? eur(act) : mon(act)),
+    kpi('Invertido', rdTab === 'ALL' ? eur(inv) : mon(inv)),
+    kpi('P&L abierto', rdTab === 'ALL' ? `<span class="${pl >= 0 ? 'pos' : 'neg'}">${eur(pl)}</span>` : `<span class="${(pl || 0) >= 0 ? 'pos' : 'neg'}">${mon(pl)}</span>`, pc(plp)),
+    kpi('Posiciones', ps.length, rdTab !== 'ALL' && tot.cash != null ? `Liquidez ${(tot.cash*100).toFixed(1)}%` : ''),
+  ];
+  if(rdTab === 'ALL' && rdExtra){
+    if(rdExtra.rent != null) kpis.push(kpi('Rentabilidad año', pc(rdExtra.rent), rdExtra.capActual != null ? eur(rdExtra.capActual) : ''));
+    if(rdExtra.realizadas != null) kpis.push(kpi('P&G realizadas', `<span class="${rdExtra.realizadas >= 0 ? 'pos' : 'neg'}">${eur(rdExtra.realizadas)}</span>`, pc(rdExtra.realizadasPct)));
+  }
+  // Reparto
+  const sectores = agrupar(ps, p => (p.sector || '—').toUpperCase());
+  const paises = agrupar(ps, p => rdPais[p.t] ? (RD_PAIS[rdPais[p.t].c] || rdPais[p.t].c) : '…');
+  const divisas = agrupar(ps, p => rdDivisa(p.t));
+  const carteras = rdTab === 'ALL' ? agrupar(ps, p => p.port) : null;
+  const reparto = `<div class="rd-sec">Reparto</div><div class="rd-g4">
+    ${carteras ? `<div class="card rd-c"><div class="card-cab">Por cartera</div><div class="card-cuerpo">${svgDonut(carteras)}</div></div>` : ''}
+    <div class="card rd-c"><div class="card-cab">Por sector</div><div class="card-cuerpo">${svgDonut(sectores)}</div></div>
+    <div class="card rd-c"><div class="card-cab">Por país</div><div class="card-cuerpo">${svgDonut(paises)}</div></div>
+    <div class="card rd-c"><div class="card-cab">Por divisa</div><div class="card-cuerpo">${svgDonut(divisas)}</div></div></div>`;
+  // Rendimiento
+  const sim = rdHistListo ? rdSimulada(ps) : null;
+  const orden = [...ps].filter(p => (mcPlVivo(p)?.pct ?? p.plPct) != null).sort((a, b) => (mcPlVivo(b)?.pct ?? b.plPct) - (mcPlVivo(a)?.pct ?? a.plPct));
+  const lineaTop = (p) => `<div class="mc-li"><b>${esc(p.t)}</b> ${esc(p.name)} <span style="float:right">${pc(mcPlVivo(p)?.pct ?? p.plPct)}</span></div>`;
+  const contrib = [...ps].sort((a, b) => b.plEur - a.plEur), ctb = [...contrib.slice(0, 6), ...contrib.slice(-6).filter(p => !contrib.slice(0, 6).includes(p))]
+    .map(p => ({n:p.t, v:p.plEur}));
+  const meses = rdTab === 'ALL' && rdExtra?.meses?.total ? rdExtra.meses.total : null;
+  const hasta = new Date().getMonth() + 1;
+  const rend = `<div class="rd-sec">Rendimiento</div>
+    ${rdTab === 'OPCIONES' ? '' : `<div class="card"><div class="card-cab">Cartera vs S&amp;P 500 <span class="rd-tag">simulada</span>
+      <span class="cnt"><i class="rd-dot" style="background:var(--pos)"></i>Cartera <i class="rd-dot" style="background:var(--media)"></i>S&amp;P 500</span></div>
+      <div class="card-cuerpo">${sim ? `<div class="rd-per">${sim.per.map(x => `<div><span>${x.n}</span><b>${pc(x.c)}</b><em>S&amp;P ${pc(x.s)}</em></div>`).join('')}</div>
+        ${svgLineas([{p:sim.spySerie, col:'#75739a', w:1.5}, {p:sim.serie, col:'#f7b83c', w:2.2}])}` : '<span class="spin"></span>'}</div></div>`}
+    ${meses ? `<div class="card"><div class="card-cab">P&amp;G realizadas por mes</div><div class="card-cuerpo">${barrasMes(meses.slice(0, hasta), MESES.slice(0, hasta).map(m => cap(m.slice(0,3))))}</div></div>` : ''}
+    <div class="rd-g2">
+      <div class="card"><div class="card-cab">Mejores</div><div class="card-cuerpo">${orden.slice(0, 5).map(lineaTop).join('') || '—'}</div></div>
+      <div class="card"><div class="card-cab">Peores</div><div class="card-cuerpo">${orden.slice(-5).reverse().map(lineaTop).join('') || '—'}</div></div>
+    </div>
+    <div class="card"><div class="card-cab">Aportación al P&amp;L</div><div class="card-cuerpo">${barrasH(ctb, eur)}</div></div>`;
+  // Riesgo
+  const ws = ps.map(p => p.w).sort((a, b) => b - a), suma = (n) => ws.slice(0, n).reduce((a, b) => a + b, 0);
+  const efectivo = 1 / (ws.reduce((a, w) => a + w*w, 0) || 1);
+  const ib = rdExtra?.ibkr || {}, qf = rdExtra?.qf || {};
+  const riesgo = `<div class="rd-sec">Riesgo</div><div class="rd-kpis">
+    ${kpi('Mayor posición', (ws[0]*100 || 0).toFixed(1) + '%', ps.find(p => p.w === ws[0])?.t || '')}
+    ${kpi('Top 5', (suma(5)*100).toFixed(1) + '%')}
+    ${kpi('Top 10', (suma(10)*100).toFixed(1) + '%')}
+    ${kpi('Nº efectivo', efectivo.toFixed(1), 'posiciones')}
+    ${rdTab === 'OPCIONES' ? '' : kpi('Volatilidad anual', sim ? (sim.vol*100).toFixed(1) + '%' : '…')}
+    ${rdTab === 'OPCIONES' ? '' : kpi('Beta vs S&P', sim && sim.beta != null ? sim.beta.toFixed(2) : '…')}
+    ${rdTab === 'OPCIONES' ? '' : kpi('Caída máxima 1 año', sim ? pc(sim.dd) : '…')}
+    ${(rdTab === 'ALL' || rdTab === 'SWING' || rdTab === 'CORE') && ib.PALANCA ? kpi('Palanca IBKR', esc(ib.PALANCA), ib['COLCHÓN'] ? 'Colchón ' + esc(ib['COLCHÓN']) : '') : ''}
+    ${(rdTab === 'ALL' || rdTab === 'QF') && qf.PALANCA ? kpi('Palanca QF', esc(qf.PALANCA), qf.PODER ? 'Poder ' + esc(qf.PODER) : '') : ''}
+  </div>`;
+  el.innerHTML = cab + `<div class="rd-kpis">${kpis.join('')}</div>` + reparto + rend + riesgo;
+}
+$('#rend').addEventListener('click', e => {
+  const b = e.target.closest('[data-rd-tab]');
+  if(b){ rdTab = b.dataset.rdTab; try{ localStorage.setItem('pitinvest_rd_tab', rdTab); }catch(x){} pintarRendimiento(); return; }
+  if(e.target.closest('[data-rd-ref]')){ mcOk = false; rdHist = {}; rdHistListo = false; rdExtra = null; cargarRendimiento(); }
 });
 
 /* ═══════════ CALENDARIO ═══════════ */
@@ -2708,6 +3003,7 @@ function irA(v){
   if(v === 'macro'){ pintarMacro(); cargarMacroSemana(offMacro); }
   if(v.startsWith('pt-')) abrirPitrader(v);
   if(v === 'micartera') cargarMiCartera();
+  if(v === 'rend') cargarRendimiento();
   if(v !== 'analisis') window.scrollTo(0,0);
 }
 document.querySelector('.menu').addEventListener('click', e => {
