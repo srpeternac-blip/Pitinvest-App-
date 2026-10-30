@@ -67,12 +67,11 @@ header{position:sticky;top:0;z-index:30;height:var(--hdr);display:flex;align-ite
 .search input::placeholder{font-family:var(--sans);color:var(--tenue)}
 .search .mag{color:var(--tenue)}
 .search .clr{color:var(--tenue);font-size:18px;padding:4px}
-/* Las carteras van como submenú de «Fichas», una debajo de otra */
-.filters{display:flex;flex-direction:column;gap:2px}
-.fsub{display:flex;align-items:center;width:100%;text-align:left;padding:7px 12px 7px 25px;border-radius:8px;
-  color:var(--media);font-size:13.5px}
-.fsub:hover{background:var(--panel);color:var(--tinta)}
-.fsub.on{background:var(--alto);color:var(--pos);font-weight:700}
+/* Las carteras, como botones encima de la lista de empresas */
+.filters{display:flex;flex-wrap:wrap;gap:5px;padding:11px 10px 10px;border-bottom:1px solid var(--borde);flex:none}
+.fsub{padding:5px 10px;border-radius:7px;border:1px solid var(--borde);background:var(--panel);color:var(--media);font-size:12.5px}
+.fsub:hover{color:var(--tinta);border-color:var(--tenue)}
+.fsub.on{background:rgba(247,184,60,.1);border-color:rgba(247,184,60,.5);color:var(--pos);font-weight:700}
 /* La lista de empresas, en su propia columna al lado del menú. Una línea por
    empresa para que quepan casi todas sin scroll; el nombre sale al pasar el ratón */
 .flista{flex:0 0 196px;align-self:flex-start;position:sticky;top:var(--hdr);height:calc(100vh - var(--hdr));
@@ -178,6 +177,7 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .mc-mv{font-family:var(--mono);font-size:11.5px;color:var(--media);margin-top:2px}
 .mc-grid{display:grid;grid-template-columns:max-content 300px;gap:14px;align-items:start;justify-content:start}
 .mc-grid > aside .card{margin-bottom:12px}
+.mc-grid > aside{margin-top:46px}
 .mc-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .mc-tab{background:var(--banda);border:1px solid var(--borde);color:var(--media);border-radius:9px;padding:7px 13px;font-size:13.5px;font-weight:600}
 .mc-tab span{font-family:var(--mono);font-size:11px;color:var(--tenue);margin-left:7px}
@@ -225,7 +225,7 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .mc-li b{font-family:var(--mono);color:var(--pos);margin-right:4px}
 .mc-li span{color:var(--tenue)}
 .mc-li span.pos{color:var(--verde)} .mc-li span.neg{color:var(--alarma)}
-@media(max-width:1180px){.mc-grid{grid-template-columns:minmax(0,1fr)}.mc-mkt{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1180px){.mc-grid{grid-template-columns:minmax(0,1fr)}.mc-grid > aside{margin-top:0}.mc-mkt{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:700px){
   .mc-mkt{grid-template-columns:repeat(3,minmax(0,1fr))}
   .mc-row{grid-template-columns:52px minmax(0,1fr) 58px 104px;padding:9px 12px}
@@ -606,7 +606,6 @@ h4.sec:first-child{margin-top:0}
           <input id="q" placeholder="Buscar empresa" autocomplete="off" spellcheck="false">
           <button class="clr" id="clr" hidden>×</button>
         </div>
-        <div class="filters" id="fEstado"></div>
       </div>
     </div>
     <!-- En escritorio, Dividendos y Tareas van debajo del submenú de Fichas -->
@@ -630,6 +629,7 @@ h4.sec:first-child{margin-top:0}
     <section class="view" id="view-fichas">
       <div class="fsplit" id="fsplit">
         <aside class="flista">
+          <div class="filters" id="fEstado"></div>
           <button class="lhead" id="lhead" title="Ordenar"></button>
           <div class="list" id="list"><div class="lempty"><span class="spin"></span></div></div>
         </aside>
@@ -646,7 +646,7 @@ h4.sec:first-child{margin-top:0}
     <section class="view" id="view-analisis">
       <div class="wrap">
         <div class="espectro"></div>
-        <div class="scr-h"><div><h1>Análisis</h1><span class="rango">Fundamental de cualquier empresa. Debajo, lo que añade el análisis de PITrader: opciones, insiders y más</span></div></div>
+        <div class="scr-h"><div><h1>Análisis</h1></div></div>
         <div class="search" style="max-width:560px">
           <span class="mag">⌕</span>
           <input id="aq" placeholder="Ticker o nombre (ej. NVDA, Hermes, Rollins)" autocomplete="off" spellcheck="false">
@@ -664,9 +664,9 @@ h4.sec:first-child{margin-top:0}
 <div class="modal" id="modal">
   <div class="modal-box">
     <h3>Ajustes</h3>
-    <p>El calendario de resultados y la pestaña de Valoración salen de tu Cloudflare Worker, el mismo que usa PITrader App. Pega aquí su URL.</p>
+    <p>Worker</p>
     <input id="inpWorker" placeholder="https://....workers.dev">
-    <p style="margin-top:16px">Script del Sheet FICHAS EMPRESAS, para tachar, añadir y editar tareas desde aquí.</p>
+    <p style="margin-top:16px">Script del Sheet</p>
     <input id="inpScript" placeholder="https://script.google.com/macros/s/.../exec">
     <input id="inpClave" placeholder="Clave del script" style="margin-top:8px">
     <div class="modal-foot">
@@ -1376,7 +1376,7 @@ function cabeceraSemana(titulo, sub, dias, off, tipo, extra){
   const et = off === 0 ? 'Esta semana' : off === 1 ? 'Semana que viene' : off === -1 ? 'Semana pasada' : (off>0?'+':'') + off + ' semanas';
   return `<div class="espectro"></div>
   <div class="scr-h">
-    <div><h1>${esc(titulo)}</h1><span class="rango">${esc(sub)} · ${esc(fmtCorto(dias[0]))} — ${esc(fmtCorto(dias[4]))} · ${esc(et)}</span></div>
+    <div><h1>${esc(titulo)}</h1><span class="rango">${esc(fmtCorto(dias[0]))} — ${esc(fmtCorto(dias[4]))} · ${esc(et)}</span></div>
     ${extra || ''}
     <div class="wknav">
       <button class="wkb" data-wk="${tipo}:-1" title="Semana anterior">‹</button>
@@ -1824,7 +1824,7 @@ function pintarMiCartera(){
   const el = $('#micartera'); if(!el) return;
   const pctTxt = (x, d = 1) => x == null ? '—' : `<span class="${x >= 0 ? 'pos' : 'neg'}">${(x > 0 ? '+' : '') + (x*100).toFixed(d)}%</span>`;
   const cab = `<div class="espectro"></div>
-    <div class="scr-h"><div><h1>Mi Cartera</h1><span class="rango">${mcOk ? mcPos.length + ' posiciones · SWING 2026' : 'SWING 2026'}</span></div>
+    <div class="scr-h"><div><h1>Mi Cartera</h1><span class="rango">${mcOk ? mcPos.length + ' posiciones' : ''}</span></div>
       <button class="btn-mini mc-ref" data-mc-ref="1">${mcCargando ? '<span class="spin"></span> Cargando' : 'Actualizar'}</button></div>`;
   const mercado = mcMercado ? `<div class="mc-mkt">${mcMercado.map(x => {
       const val = x.v == null ? '—' : ['BTC-USD','ES=F','NQ=F','RTY=F'].includes(x.s) ? Math.round(x.v).toLocaleString('es-ES') : x.v.toFixed(2);
@@ -1904,7 +1904,7 @@ function pintarMiCartera(){
     }).join('') : '<div class="vacio">Sin movimientos.</div>'}</div></div>`;
 
   el.innerHTML = cab + mercado + `<div class="mc-grid"><div>${pestanas}${tabla}
-    ${mcPort === 'OPCIONES' || mcPort === 'ALL' ? '<div class="mc-nota">* Opciones sin prima en vivo: valor de tu hoja, orientativo.</div>' : ''}</div>
+    </div>
     <aside>${ladoSec}${ladoRes}${ladoIns}</aside></div>`;
 }
 $('#micartera').addEventListener('click', e => {
@@ -2644,7 +2644,6 @@ function renderA(){
       <h4 class="sec">Múltiplos y su mediana histórica</h4>${filas.slice(3,6).join('')}
       <h4 class="sec">Deuda</h4>${filas.slice(6,nDeuda).join('')}
       <h4 class="sec">Retribución al accionista</h4>${filas.slice(nDeuda).join('')}
-      ${enPanel() ? '' : '<div class="foot">Datos de Yahoo Finance vía tu worker. Dato no verificado contra la fuente original: para una tesis, confirma las cifras en el informe de la compañía.</div>'}
     </div>`;
   const elDesc = $(AOUT).querySelector('.desc');
   if(elDesc) descES(elDesc, c.resumen);
