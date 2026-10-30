@@ -173,7 +173,7 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .mc-mn{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue);margin-bottom:4px}
 .mc-mc{font-family:var(--mono);font-size:17px;font-weight:700}
 .mc-mv{font-family:var(--mono);font-size:11.5px;color:var(--media);margin-top:2px}
-.mc-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+.mc-grid{display:grid;grid-template-columns:max-content 300px;gap:14px;align-items:start;justify-content:start}
 .mc-grid > aside .card{margin-bottom:12px}
 .mc-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .mc-tab{background:var(--banda);border:1px solid var(--borde);color:var(--media);border-radius:9px;padding:7px 13px;font-size:13.5px;font-weight:600}
@@ -181,7 +181,7 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 .mc-tab.on{background:rgba(247,184,60,.1);border-color:rgba(247,184,60,.5);color:var(--pos)}
 .mc-tab.on span{color:var(--pos)}
 .mc-tabla{padding:0}
-.mc-row{display:grid;grid-template-columns:60px 82px minmax(0,1fr) 66px 86px 150px 92px;gap:8px;align-items:center;padding:8px 16px;border-top:1px solid rgba(43,42,71,.5);font-size:13.5px}
+.mc-row{display:grid;grid-template-columns:60px 82px 250px 66px 86px 150px 60px;gap:8px;align-items:center;padding:8px 16px;border-top:1px solid rgba(43,42,71,.5);font-size:13.5px}
 .mc-row:nth-child(even):not(.mc-head){background:rgba(255,255,255,.015)}
 .mc-head{border-top:0;background:var(--alto);border-bottom:1px solid var(--borde);padding:10px 16px}
 .mc-h{background:none;border:0;padding:0;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue);text-align:center}
@@ -205,8 +205,6 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .mc-b.b-r{color:var(--pos);border-color:rgba(247,184,60,.6)}
 .mc-b.b-i{color:var(--verde);border-color:rgba(74,222,128,.55)}
-.mc-b.b-a{color:var(--alarma);border-color:rgba(255,95,77,.6);box-shadow:0 0 8px rgba(255,95,77,.25)}
-.mc-alerta{margin:0 16px 8px;padding:10px 13px;background:var(--banda);border:1px solid rgba(255,95,77,.35);border-radius:9px;font-size:13px;line-height:1.6;color:var(--media)}
 .mc-nota{font-size:12px;color:var(--tenue);margin:-4px 2px 10px}
 .mc-sec-h{display:flex;justify-content:space-between;margin-bottom:8px}
 .mc-sh{background:none;border:0;padding:0;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue)}
@@ -224,7 +222,7 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .mc-li b{font-family:var(--mono);color:var(--pos);margin-right:4px}
 .mc-li span{color:var(--tenue)}
 .mc-li span.pos{color:var(--verde)} .mc-li span.neg{color:var(--alarma)}
-@media(max-width:1100px){.mc-grid{grid-template-columns:1fr}.mc-mkt{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1180px){.mc-grid{grid-template-columns:minmax(0,1fr)}.mc-mkt{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:700px){
   .mc-mkt{grid-template-columns:repeat(3,minmax(0,1fr))}
   .mc-row{grid-template-columns:52px minmax(0,1fr) 58px 104px;padding:9px 12px}
@@ -1617,13 +1615,13 @@ $('#tareas').addEventListener('keydown', e => {
    Traída de PITrader. Lee las cuatro pestañas de dinero del SWING 2026 a través
    del worker (/sheet?tab=…), que no está publicado: solo el worker lo ve.
    Encima: barra de mercado. Al lado: sectores, resultados de dos semanas e
-   insiders de 7 días. Botones por posición: R (presenta), I (insider), ⚡ (alerta). */
+   insiders de 7 días. Botones por posición: R (presenta) e I (insider). */
 const MC_TABS = ['SWING','OPCIONES','QF','CORE'];
 const MC_XMAP = {lon:'.L',lse:'.L',epa:'.PA',ams:'.AS',bru:'.BR',asx:'.AX',tse:'.TO',tsx:'.TO',cve:'.V',bit:'.MI',xetr:'.DE',fra:'.DE',bme:'.MC',swx:'.SW',hkex:'.HK',tyo:'.T',nse:'.NS',bse:'.BO'};
 const MC_MKT = [{n:'S&P 500',s:'ES=F'},{n:'Nasdaq',s:'NQ=F'},{n:'Russell',s:'RTY=F'},{n:'VIX',s:'^VIX'},{n:'Oro',s:'GC=F'},{n:'WTI',s:'CL=F'},{n:'Bitcoin',s:'BTC-USD'}];
 let mcPos = [], mcTot = {}, mcOk = false, mcCargando = false, mcError = '';
 let mcPort = 'ALL', mcSort = {col:'peso', dir:'desc'}, mcSecSort = {col:'peso', dir:'desc'}, mcSecOpen = {};
-let mcMetrics = {}, mcAlertas = {}, mcInsiders = {}, mcPrimas = {}, mcPrimasTs = 0, mcMercado = null, mcAbierto = null;
+let mcMetrics = {}, mcInsiders = {}, mcPrimas = {}, mcPrimasTs = 0, mcMercado = null;
 try{ mcPort = localStorage.getItem('pitinvest_mc_port') || 'ALL'; }catch(e){}
 
 const mcYahoo = (raw) => { if(!raw) return null; const c = raw.trim();
@@ -1770,9 +1768,8 @@ async function mcCargarInsiders(){
   });
   if(vista === 'micartera') pintarMiCartera();
 }
-/* Precio de hoy (en sesión o pre-market), volumen y alertas ⚡ */
+/* Precio de hoy: en sesión o pre-market */
 async function mcEscanear(){
-  mcAlertas = {};
   const ts = [...new Set(mcPos.map(p => p.t))];
   await mcPool(ts, 6, async (t) => {
     try{
@@ -1794,12 +1791,6 @@ async function mcEscanear(){
           if(enPre || enSesion){ mcMetrics[t].chgLive = (c2[li]-prev)/prev; mcMetrics[t].pre = !!enPre; }
         }
       }catch(e){}
-      const motivos = [];
-      if(chg != null && Math.abs(chg) >= 0.06) motivos.push(`Movimiento fuerte en la última sesión: <b class="${chg >= 0 ? 'pos' : 'neg'}">${(chg > 0 ? '+' : '') + (chg*100).toFixed(1)}%</b>`);
-      if(volX != null && volX >= 2.5) motivos.push(`Volumen inusual: <b>${volX.toFixed(1)}×</b> su media de 20 sesiones`);
-      const compras = (mcInsiders[t] || []).filter(x => !x.venta && x.v >= 100000);
-      if(compras.length) motivos.push(`Compra de insider considerable: <b class="pos">${compras[0].vTxt}</b> · ${esc(compras[0].quien)}`);
-      if(motivos.length) mcAlertas[t] = motivos;
     }catch(e){}
   });
   if(vista === 'micartera') pintarMiCartera();
@@ -1855,13 +1846,11 @@ function pintarMiCartera(){
       return r ? `<a class="mc-b b-r" href="https://www.nasdaq.com/market-activity/stocks/${b}/earnings" target="_blank" rel="noopener" title="Presenta ${esc(fmtCorto(fechaDe(r.iso)))} · ${esc(r.ses)}">R</a>` : '<span class="mc-b">R</span>'; }
     if(tipo === 'I'){ const x = (mcInsiders[t] || [])[0];
       return x ? `<a class="mc-b b-i" href="https://www.nasdaq.com/market-activity/stocks/${b}/insider-activity" target="_blank" rel="noopener" title="${x.venta ? 'Venta' : 'Compra'} de insider · ${esc(x.vTxt)}">I</a>` : '<span class="mc-b">I</span>'; }
-    const a = mcAlertas[t];
-    return a ? `<button class="mc-b b-a" data-mc-alerta="${esc(t)}" title="Ver alerta">⚡</button>` : '<span class="mc-b">⚡</span>';
+    return '';
   };
   const filas = lista.map(p => {
     const m = mcMetrics[p.t] || {}, mov = hoyDe(p), q = plDe(p), v = mcPlVivo(p);
     const tip = p.port === 'OPCIONES' ? (v ? `En vivo (${v.fuente}: ${v.prima.toFixed(2)}$) × ${p.contratos} contrato${p.contratos === 1 ? '' : 's'} = ${Math.round(v.valor).toLocaleString('es-ES')}$` : 'Valor de tu hoja (sin prima en vivo)') : '';
-    const abierta = mcAbierto === p.t + '|' + p.port;
     return `<div class="mc-row">
       <span class="mc-c-peso">${p.peso != null ? (p.peso*100).toFixed(1) + '%' : '—'}</span>
       <button class="mc-c-tick" data-mc-ir="${esc(p.t)}|${esc(p.port)}">${esc(p.t)}</button>
@@ -1869,8 +1858,8 @@ function pintarMiCartera(){
       <span class="mc-c-mov">${mov == null ? '—' : `<span class="${mov >= 0 ? 'pos' : 'neg'}${m.pre ? ' mc-pre' : ''}" ${m.pre ? 'title="Pre-market"' : ''}>${(mov > 0 ? '+' : '') + (mov*100).toFixed(1)}%</span>`}</span>
       <span class="mc-c-inv">${p.inv != null ? Math.round(p.inv).toLocaleString('es-ES') : '—'}</span>
       <span class="mc-c-pl" ${tip ? `title="${esc(tip)}"` : ''}>${q.eur == null ? '' : `<b class="${q.eur >= 0 ? 'pos' : 'neg'}">${(q.eur > 0 ? '+' : '') + Math.round(q.eur).toLocaleString('es-ES')}€</b>`} ${pctTxt(q.pct)}${p.port === 'OPCIONES' && !q.vivo ? '<i class="mc-ast">*</i>' : ''}</span>
-      <span class="mc-acts">${boton(p.t,'R')}${boton(p.t,'I')}${boton(p.t,'A')}</span>
-    </div>${abierta && mcAlertas[p.t] ? `<div class="mc-alerta">${mcAlertas[p.t].join('<br>')}</div>` : ''}`;
+      <span class="mc-acts">${boton(p.t,'R')}${boton(p.t,'I')}</span>
+    </div>`;
   }).join('') || '<div class="vacio" style="padding:14px">Esta cartera no tiene posiciones.</div>';
   const tabla = `<div class="card mc-tabla">
     <div class="mc-row mc-head">${h('peso','Peso')}${h('tick','Ticker')}${h('name','Nombre')}${h('mov','Hoy')}${h('inv','Invertido')}${h('pl','P&L')}<span class="mc-acts"></span></div>
@@ -1920,8 +1909,6 @@ $('#micartera').addEventListener('click', e => {
     if(mcSecSort.col === c) mcSecSort.dir = mcSecSort.dir === 'desc' ? 'asc' : 'desc'; else mcSecSort = {col:c, dir:c === 's' ? 'asc' : 'desc'};
     pintarMiCartera(); }
   else if((b = t('[data-mc-sec]'))){ const k = b.dataset.mcSec; mcSecOpen[k] = !mcSecOpen[k]; pintarMiCartera(); }
-  else if((b = t('[data-mc-alerta]'))){ const tk = b.dataset.mcAlerta, p = mcPos.find(x => x.t === tk);
-    const k = tk + '|' + (p ? p.port : ''); mcAbierto = mcAbierto === k ? null : k; pintarMiCartera(); }
   else if((b = t('[data-mc-ir]'))){
     const [tk, port] = b.dataset.mcIr.split('|'), p = mcPos.find(x => x.t === tk && x.port === port), f = p && mcFichaDe(p);
     if(f) irAFicha(f.TICKER); else analizar(tk);
