@@ -2685,6 +2685,13 @@ window.addEventListener('message', e => {
   if(e.origin !== location.origin || !e.data || e.data.pitrader !== 'alto' || e.data.v !== 'analisis') return;
   const f = $('#aPT iframe'); if(f) f.style.height = Math.max(200, e.data.alto) + 'px';
 });
+/* Por si el aviso no llega (pestaña en segundo plano): se mide el marco cada poco mientras se ve */
+setInterval(() => {
+  if(vista !== 'analisis') return;
+  const f = $('#aPT iframe'); if(!f) return;
+  try{ const m = f.contentDocument && f.contentDocument.querySelector('.main');
+    if(m){ const h = Math.max(200, m.scrollHeight + 4) + 'px'; if(f.style.height !== h) f.style.height = h; } }catch(e){}
+}, 1500);
 /* Las pantallas de PITrader se abren dentro, cada una en su marco, la primera vez que se entra */
 const PITRADER = 'https://srpeternac-blip.github.io/PITrader-app/';
 function abrirPitrader(v){
