@@ -2142,7 +2142,8 @@ function rdSimulada(ps){
 function pintarRendimiento(){
   const el = $('#rend'); if(!el) return;
   const pc = (x, d = 1) => x == null ? '—' : `<span class="${x >= 0 ? 'pos' : 'neg'}">${(x > 0 ? '+' : '') + (x*100).toFixed(d)}%</span>`;
-  const eur = (x) => x == null ? '—' : Math.round(x).toLocaleString('es-ES') + ' €';
+  const NF = new Intl.NumberFormat('es-ES', {maximumFractionDigits:0, useGrouping:'always'});
+  const eur = (x) => x == null ? '—' : NF.format(Math.round(x)) + ' €';
   const cab = `<div class="espectro"></div><div class="scr-h"><div><h1>Rendimiento</h1></div>
     <button class="btn-mini mc-ref" data-rd-ref="1">${rdCargando ? '<span class="spin"></span>' : 'Actualizar'}</button></div>
     <div class="mc-tabs rd-tabs">${RD_TABS.map(([k, l]) => `<button class="mc-tab ${rdTab === k ? 'on' : ''}" data-rd-tab="${k}">${l}</button>`).join('')}</div>`;
@@ -2150,7 +2151,7 @@ function pintarRendimiento(){
   if(!mcOk){ el.innerHTML = cab + (mcError ? `<div class="err">${esc(mcError)}</div>` : '<div class="card"><div class="card-cuerpo"><span class="spin"></span></div></div>'); return; }
 
   const ps = rdPesos(rdPosiciones(rdTab), rdTab), tot = rdTab === 'ALL' ? null : mcTot[rdTab] || {};
-  const mon = (v) => v == null ? '—' : RD_USD[rdTab] ? '$' + Math.round(v).toLocaleString('es-ES') : eur(v);
+  const mon = (v) => v == null ? '—' : RD_USD[rdTab] ? '$' + NF.format(Math.round(v)) : eur(v);
   // Resumen
   const inv = rdTab === 'ALL' ? ps.reduce((a, p) => a + p.invEur, 0) : tot.inv;
   const act = rdTab === 'ALL' ? ps.reduce((a, p) => a + p.valEur, 0) : tot.act;
@@ -2158,13 +2159,14 @@ function pintarRendimiento(){
   const plp = rdTab === 'ALL' ? (inv ? pl/inv : null) : tot.pct;
   const kpi = (n, v, sub = '') => `<div class="rd-kpi"><span>${n}</span><b>${v}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
   const kpis = [
-    kpi('Valor', rdTab === 'ALL' ? eur(act) : mon(act)),
+    ...(rdTab === 'ALL' && rdExtra?.capActual != null ? [kpi('Capital', eur(rdExtra.capActual))] : []),
+    kpi(rdTab === 'ALL' ? 'Exposición' : 'Valor', rdTab === 'ALL' ? eur(act) : mon(act)),
     kpi('Invertido', rdTab === 'ALL' ? eur(inv) : mon(inv)),
     kpi('P&L abierto', rdTab === 'ALL' ? `<span class="${pl >= 0 ? 'pos' : 'neg'}">${eur(pl)}</span>` : `<span class="${(pl || 0) >= 0 ? 'pos' : 'neg'}">${mon(pl)}</span>`, pc(plp)),
     kpi('Posiciones', ps.length, rdTab !== 'ALL' && tot.cash != null ? `Liquidez ${(tot.cash*100).toFixed(1)}%` : ''),
   ];
   if(rdTab === 'ALL' && rdExtra){
-    if(rdExtra.rent != null) kpis.push(kpi('Rentabilidad año', pc(rdExtra.rent), rdExtra.capActual != null ? eur(rdExtra.capActual) : ''));
+    if(rdExtra.rent != null) kpis.push(kpi('Rentabilidad año', pc(rdExtra.rent), rdExtra.pyg != null ? eur(rdExtra.pyg) : ''));
     if(rdExtra.realizadas != null) kpis.push(kpi('P&G realizadas', `<span class="${rdExtra.realizadas >= 0 ? 'pos' : 'neg'}">${eur(rdExtra.realizadas)}</span>`, pc(rdExtra.realizadasPct)));
   }
   // Reparto
@@ -2173,7 +2175,7 @@ function pintarRendimiento(){
   const divisas = agrupar(ps, p => rdDivisa(p.t));
   const carteras = rdTab === 'ALL' ? agrupar(ps, p => p.port) : null;
   const reparto = `<div class="rd-sec">Reparto</div><div class="rd-g4">
-    ${carteras ? `<div class="card rd-c"><div class="card-cab">Por cartera</div><div class="card-cuerpo">${svgDonut(carteras)}</div></div>` : ''}
+    ${carteras ? `<div class="card rd-c"><div class="card-cab">Exposición por cartera</div><div class="card-cuerpo">${svgDonut(carteras)}</div></div>` : ''}
     <div class="card rd-c"><div class="card-cab">Por sector</div><div class="card-cuerpo">${svgDonut(sectores)}</div></div>
     <div class="card rd-c"><div class="card-cab">Por país</div><div class="card-cuerpo">${svgDonut(paises)}</div></div>
     <div class="card rd-c"><div class="card-cab">Por divisa</div><div class="card-cuerpo">${svgDonut(divisas)}</div></div></div>`;
