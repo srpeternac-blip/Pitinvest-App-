@@ -1627,7 +1627,7 @@ $('#tareas').addEventListener('keydown', e => {
    Encima: barra de mercado. Al lado: sectores, resultados de dos semanas e
    insiders de 7 días. Botones por posición: R (presenta) e I (insider). */
 const MC_TABS = ['SWING','OPCIONES','QF','CORE'];
-const MC_XMAP = {lon:'.L',lse:'.L',epa:'.PA',ams:'.AS',bru:'.BR',asx:'.AX',tse:'.TO',tsx:'.TO',cve:'.V',bit:'.MI',xetr:'.DE',fra:'.DE',bme:'.MC',swx:'.SW',hkex:'.HK',tyo:'.T',nse:'.NS',bse:'.BO'};
+const MC_XMAP = {lon:'.L',lse:'.L',epa:'.PA',ams:'.AS',bru:'.BR',asx:'.AX',tse:'.TO',tsx:'.TO',cve:'.V',bit:'.MI',xetr:'.DE',fra:'.F',bme:'.MC',swx:'.SW',hkex:'.HK',tyo:'.T',nse:'.NS',bse:'.BO'};
 const MC_MKT = [{n:'S&P 500',s:'ES=F'},{n:'Nasdaq',s:'NQ=F'},{n:'Russell',s:'RTY=F'},{n:'VIX',s:'^VIX'},{n:'Oro',s:'GC=F'},{n:'WTI',s:'CL=F'},{n:'Bitcoin',s:'BTC-USD'}];
 let mcPos = [], mcTot = {}, mcOk = false, mcCargando = false, mcError = '';
 let mcPort = 'ALL', mcSort = {col:'peso', dir:'desc'}, mcSecSort = {col:'peso', dir:'desc'}, mcSecOpen = {};
@@ -1703,6 +1703,12 @@ async function cargarMiCartera(forzar){
     mcPos = []; mcTot = {};
     for(const {tab, txt} of res){ const p = mcPestana(txt, tab); mcPos.push(...p.pos); mcTot[tab] = {...(p.tot || {}), cash:p.cash}; }
     if(!mcPos.length) throw new Error('sin posiciones en las pestañas');
+    // En el SWING 2026 algunos tickers van sin bolsa (WHC, C7A0…): la bolsa se toma de su ficha
+    mcPos.forEach(p => {
+      if(String(p.orig).includes(':')) return;
+      const f = fichas.find(x => String(x.TICKER || '').toUpperCase() === String(p.orig).toUpperCase());
+      if(f && String(f.SIMBOLO_GF || '').includes(':')) p.t = mcYahoo(f.SIMBOLO_GF);
+    });
     mcOk = true;
   }catch(e){ mcError = e.message; }
   mcCargando = false; pintarMiCartera();
@@ -1780,28 +1786,21 @@ async function mcCargarInsiders(){
 }
 /* Precio de hoy: en sesión o pre-market */
 async function mcEscanear(){
-  const ts = [...new Set(mcPos.map(p => p.t))];
-  await mcPool(ts, 6, async (t) => {
+  // Una sola llamada ligera por valor (5 días, barra diaria); se pinta a medida que llegan
+  const ts = [...new Set(mcPos.map(p => p.t))], hoy = new Date().toISOString().slice(0,10);
+  let hechos = 0;
+  await mcPool(ts, 10, async (t) => {
     try{
-      const j = await api('/chart/' + encodeURIComponent(t) + '?range=3mo&interval=1d');
-      const r0 = j?.chart?.result?.[0], q = r0?.indicators?.quote?.[0] || {};
-      const cl = (q.close || []).filter(v => v != null), vl = (q.volume || []).filter(v => v != null);
-      const chg = cl.length > 1 ? cl[cl.length-1]/cl[cl.length-2] - 1 : null;
-      const v20 = vl.length >= 20 ? vl.slice(-20).reduce((a,b) => a+b, 0)/20 : null;
-      const volX = v20 && vl[vl.length-1] ? vl[vl.length-1]/v20 : null;
-      mcMetrics[t] = {chg1:chg, volX};
-      try{
-        const j2 = await api('/chart/' + encodeURIComponent(t) + '?range=1d&interval=5m');
-        const r2 = j2?.chart?.result?.[0], meta = r2?.meta || {}, c2 = r2?.indicators?.quote?.[0]?.close || [], tss = r2?.timestamp || [];
-        let li = -1; for(let i = c2.length - 1; i >= 0; i--) if(c2[i] != null){ li = i; break; }
-        const prev = meta.chartPreviousClose ?? meta.previousClose;
-        if(li >= 0 && prev){
-          const reg = meta.currentTradingPeriod?.regular, pre = meta.currentTradingPeriod?.pre, lt = tss[li];
-          const enPre = pre && reg && lt >= pre.start && lt < reg.start, enSesion = reg && lt >= reg.start && lt <= reg.end;
-          if(enPre || enSesion){ mcMetrics[t].chgLive = (c2[li]-prev)/prev; mcMetrics[t].pre = !!enPre; }
-        }
-      }catch(e){}
+      const j = await api('/chart/' + encodeURIComponent(t) + '?range=5d&interval=1d');
+      const r0 = j?.chart?.result?.[0], meta = r0?.meta || {}, tss = r0?.timestamp || [], c = r0?.indicators?.quote?.[0]?.close || [];
+      const barras = tss.map((x, i) => ({d: new Date(x*1000).toISOString().slice(0,10), c: c[i]})).filter(b => b.c != null);
+      if(barras.length >= 2){
+        const ult = barras[barras.length-1], ant = barras[barras.length-2];
+        const precio = meta.regularMarketPrice ?? ult.c;
+        mcMetrics[t] = {chg: precio/ant.c - 1, deHoy: ult.d === hoy};
+      }
     }catch(e){}
+    if(++hechos % 8 === 0 && vista === 'micartera') pintarMiCartera();
   });
   if(vista === 'micartera') pintarMiCartera();
 }
@@ -1843,7 +1842,7 @@ function pintarMiCartera(){
 
   let lista = mcPort === 'ALL' ? mcPos : mcPos.filter(p => p.port === mcPort);
   const plDe = (p) => { const v = mcPlVivo(p); return {pct: v ? v.pct : p.plPct, eur: v ? v.eur : p.pl, vivo: !!v}; };
-  const hoyDe = (p) => { const m = mcMetrics[p.t] || {}; return m.chgLive ?? m.chg1; };
+  const hoyDe = (p) => (mcMetrics[p.t] || {}).chg ?? null;
   const valor = (p) => ({peso:p.peso, tick:p.t, name:p.name, mov:hoyDe(p), inv:p.inv, pl:plDe(p).pct})[mcSort.col];
   const dir = mcSort.dir === 'desc' ? -1 : 1;
   lista = [...lista].sort((a, b) => { const va = valor(a), vb = valor(b);
@@ -1865,7 +1864,7 @@ function pintarMiCartera(){
       <span class="mc-c-peso">${p.peso != null ? (p.peso*100).toFixed(1) + '%' : '—'}</span>
       <button class="mc-c-tick" data-mc-ir="${esc(p.t)}|${esc(p.port)}">${esc(p.t)}</button>
       <button class="mc-c-name" data-mc-ir="${esc(p.t)}|${esc(p.port)}">${esc(p.name)}${mcPort === 'ALL' ? `<small>${esc(p.port)}</small>` : ''}</button>
-      <span class="mc-c-mov">${mov == null ? '—' : `<span class="${mov >= 0 ? 'pos' : 'neg'}${m.pre ? ' mc-pre' : ''}" ${m.pre ? 'title="Pre-market"' : ''}>${(mov > 0 ? '+' : '') + (mov*100).toFixed(1)}%</span>`}</span>
+      <span class="mc-c-mov">${mov == null ? (mcMetrics[p.t] === undefined ? '<span class="mc-pre">…</span>' : '—') : `<span class="${mov >= 0 ? 'pos' : 'neg'}${m.deHoy ? '' : ' mc-pre'}" ${m.deHoy ? '' : 'title="Su bolsa aún no ha abierto hoy: es el cambio de la última sesión"'}>${(mov > 0 ? '+' : '') + (mov*100).toFixed(1)}%</span>`}</span>
       <span class="mc-c-inv">${p.inv != null ? Math.round(p.inv).toLocaleString('es-ES') : '—'}</span>
       <span class="mc-c-pl" ${tip ? `title="${esc(tip)}"` : ''}>${q.eur == null ? '' : `<b class="${q.eur >= 0 ? 'pos' : 'neg'}">${(q.eur > 0 ? '+' : '') + Math.round(q.eur).toLocaleString('es-ES')}€</b>`} ${pctTxt(q.pct)}${p.port === 'OPCIONES' && !q.vivo ? '<i class="mc-ast">*</i>' : ''}</span>
       <span class="mc-acts">${boton(p.t,'R')}${boton(p.t,'I')}</span>
