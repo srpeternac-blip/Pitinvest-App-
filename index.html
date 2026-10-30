@@ -165,7 +165,10 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
   text-transform:uppercase;margin-top:10px;color:var(--tenue)}
 /* Pantallas de PITrader integradas (mientras se rehacen dentro de Pitinvest) */
 .pt-view{padding:0}
-.pt-view iframe{display:block;width:100%;height:calc(100vh - var(--hdr));border:0;background:var(--noche)}
+.pt-view iframe{display:block;width:100%;height:calc(100vh - var(--hdr));border:0;background:transparent}
+#aPT iframe{display:block;width:100%;height:600px;border:0;background:transparent;margin-top:18px}
+.menu-nav2{padding-top:3px}
+.solo-movil{display:none!important}
 /* Mi Cartera */
 .mc-ref{margin-left:auto}
 .mc-mkt{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-bottom:16px}
@@ -540,6 +543,7 @@ h4.sec:first-child{margin-top:0}
   .fpanel.on{display:none}
   body.movil-fichas .fpanel.on{display:flex}
   .wrap{padding:16px 14px 70px}
+  .solo-movil{display:flex!important} .solo-escritorio{display:none!important}
   .pt-view iframe{height:calc(100vh - var(--hdr) - 58px)}
   .semana{grid-template-columns:1fr}
   .detail{padding:16px 15px 70px}
@@ -579,19 +583,20 @@ h4.sec:first-child{margin-top:0}
 <div class="shell">
   <nav class="menu">
     <div class="menu-nav">
-      <button class="nv on" data-view="agenda"><span class="mk"></span>Agenda del día</button>
       <button class="nv" data-view="micartera"><span class="mk"></span>Mi Cartera</button>
-      <button class="nv" data-view="cal"><span class="mk"></span>Calendario</button>
       <button class="nv" data-view="eventos"><span class="mk"></span>Eventos de cartera</button>
-      <button class="nv" data-view="pt-dividendos"><span class="mk"></span>Dividendos</button>
-      <button class="nv" data-view="pt-insiders"><span class="mk"></span>Insiders</button>
+      <button class="nv on" data-view="agenda"><span class="mk"></span>Agenda del día</button>
+      <div class="nv-sep"></div>
+      <button class="nv" data-view="cal"><span class="mk"></span>Calendario</button>
       <button class="nv" data-view="macro"><span class="mk"></span>Macro</button>
-      <button class="nv" data-view="analisis"><span class="mk"></span>Analizar</button>
-      <button class="nv" data-view="pt-analisis"><span class="mk"></span>Análisis completo</button>
+      <button class="nv" data-view="pt-insiders"><span class="mk"></span>Insiders</button>
+      <div class="nv-sep"></div>
+      <button class="nv" data-view="analisis"><span class="mk"></span>Análisis</button>
       <button class="nv" data-view="pt-busqueda"><span class="mk"></span>Momentum</button>
-      <button class="nv" data-view="tareas"><span class="mk"></span>Tareas pendientes</button>
       <div class="nv-sep"></div>
       <button class="nv" data-view="fichas"><span class="mk"></span>Fichas</button>
+      <button class="nv solo-movil" data-view="pt-dividendos"><span class="mk"></span>Dividendos</button>
+      <button class="nv solo-movil" data-view="tareas"><span class="mk"></span>Tareas pendientes</button>
     </div>
 
     <div class="fpanel" id="fpanel">
@@ -604,6 +609,11 @@ h4.sec:first-child{margin-top:0}
         <div class="filters" id="fEstado"></div>
       </div>
     </div>
+    <!-- En escritorio, Dividendos y Tareas van debajo del submenú de Fichas -->
+    <div class="menu-nav menu-nav2 solo-escritorio">
+      <button class="nv" data-view="pt-dividendos"><span class="mk"></span>Dividendos</button>
+      <button class="nv" data-view="tareas"><span class="mk"></span>Tareas pendientes</button>
+    </div>
   </nav>
 
   <div>
@@ -615,7 +625,6 @@ h4.sec:first-child{margin-top:0}
     <section class="view" id="view-micartera"><div class="wrap ancho" id="micartera"></div></section>
     <section class="view pt-view" id="view-pt-dividendos"></section>
     <section class="view pt-view" id="view-pt-insiders"></section>
-    <section class="view pt-view" id="view-pt-analisis"></section>
     <section class="view pt-view" id="view-pt-busqueda"></section>
 
     <section class="view" id="view-fichas">
@@ -637,7 +646,7 @@ h4.sec:first-child{margin-top:0}
     <section class="view" id="view-analisis">
       <div class="wrap">
         <div class="espectro"></div>
-        <div class="scr-h"><div><h1>Analizar</h1><span class="rango">Para empresas que no tienes en cartera ni en watchlist. Las que sí, llevan su fundamental en la ficha</span></div></div>
+        <div class="scr-h"><div><h1>Análisis</h1><span class="rango">Fundamental de cualquier empresa. Debajo, lo que añade el análisis de PITrader: opciones, insiders y más</span></div></div>
         <div class="search" style="max-width:560px">
           <span class="mag">⌕</span>
           <input id="aq" placeholder="Ticker o nombre (ej. NVDA, Hermes, Rollins)" autocomplete="off" spellcheck="false">
@@ -646,6 +655,7 @@ h4.sec:first-child{margin-top:0}
         <div class="notice" id="aNotice"></div>
         <div class="cands" id="aCands"></div>
         <div id="aOut"></div>
+        <div id="aPT"></div>
       </div>
     </section>
   </div>
@@ -2481,6 +2491,7 @@ async function analizar(t, destino){
   t = String(t).toUpperCase();
   AOUT = destino === 'panel' ? '#pOut' : '#aOut';
   ANOTICE = destino === 'panel' ? '#pNotice' : '#aNotice';
+  if(destino !== 'panel') analisisPitrader(t);
   if(!enPanel()){ irA('analisis'); $('#aq').value = t; }
   if(!workerUrl){ abrirModal(); return; }
   const b = enPanel() ? null : $('#aGo');
@@ -2665,6 +2676,15 @@ $('#btnTest').addEventListener('click', async () => {
 });
 
 /* ═══════════ Navegación ═══════════ */
+/* La parte de PITrader del análisis (opciones, insiders…), debajo del fundamental */
+function analisisPitrader(t){
+  const c = $('#aPT'); if(!c) return;
+  c.innerHTML = `<iframe src="${PITRADER}?embed=analisis&t=${encodeURIComponent(t)}" title="Análisis PITrader"></iframe>`;
+}
+window.addEventListener('message', e => {
+  if(e.origin !== location.origin || !e.data || e.data.pitrader !== 'alto' || e.data.v !== 'analisis') return;
+  const f = $('#aPT iframe'); if(f) f.style.height = Math.max(200, e.data.alto) + 'px';
+});
 /* Las pantallas de PITrader se abren dentro, cada una en su marco, la primera vez que se entra */
 const PITRADER = 'https://srpeternac-blip.github.io/PITrader-app/';
 function abrirPitrader(v){
