@@ -1712,7 +1712,7 @@ function mcPestana(txt, tab){
   for(let i = 0; i < Math.min(rows.length, 8); i++){
     const ci = rows[i].map(c => c.toUpperCase()).indexOf('INVERTIDO');
     if(ci >= 0 && rows[i+1]){ const v = rows[i+1];
-      out.tot = {inv:mcNum(v[ci]), act:mcNum(v[ci+1]), pl:mcNum(v[ci+2]), pct:mcNum(v[ci+3])}; break; }
+      out.tot = {inv:mcDinero(v[ci]), act:mcDinero(v[ci+1]), pl:mcDinero(v[ci+2]), pct:mcNum(v[ci+3])}; break; }
   }
   let hi = -1, map = {};
   for(let i = 0; i < Math.min(rows.length, 10); i++){
