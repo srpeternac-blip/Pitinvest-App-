@@ -169,7 +169,6 @@ h1{font-family:var(--disp);font-weight:800;font-size:clamp(25px,3.2vw,36px);lett
 /* Pantallas de PITrader integradas (mientras se rehacen dentro de Pitinvest) */
 .pt-view{padding:0}
 .pt-view iframe{display:block;width:100%;height:calc(100vh - var(--hdr));border:0;background:transparent}
-#aPT iframe{display:block;width:100%;height:600px;border:0;background:transparent;margin-top:18px}
 .menu-nav2{padding-top:3px}
 .solo-movil{display:none!important}
 /* Mi Cartera */
@@ -245,7 +244,8 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .rd-kpi b{font-family:var(--mono);font-size:20px;font-weight:700}
 .rd-kpi em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--media)}
 #rend .pos{color:var(--verde)} #rend .neg{color:var(--alarma)}
-.rd-g4{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.rd-g4{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
+.rd-bar{cursor:default}
 .rd-g4 .card,.rd-g2 .card{margin-bottom:0}
 .rd-g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:13px}
 .rd-donut{display:flex;align-items:center;gap:16px}
@@ -706,7 +706,6 @@ h4.sec:first-child{margin-top:0}
         <div class="notice" id="aNotice"></div>
         <div class="cands" id="aCands"></div>
         <div id="aOut"></div>
-        <div id="aPT"></div>
       </div>
     </section>
   </div>
@@ -1729,7 +1728,7 @@ function mcPestana(txt, tab){
     const r = rows[i], tk = (r[cT] || '').trim(), nom = (r[cN] || '').trim();
     if(!tk && !nom){ if(++vacias >= 3) break; continue; }
     vacias = 0;
-    if(nom.toUpperCase() === 'CASH'){ out.cash = mcNum(r[cP]); continue; }
+    if(nom.toUpperCase() === 'CASH'){ out.cash = mcNum(r[cP]); out.cashAmt = cInv != null ? mcDinero(r[cInv]) : null; continue; }
     if(!tk) continue;
     out.pos.push({orig:tk, t:mcYahoo(tk), name:nom || tk, port:tab,
       peso: cP != null ? mcNum(r[cP]) : null, pl: cPL != null ? mcDinero(r[cPL]) : null, plPct: cPct != null ? mcNum(r[cPct]) : null,
@@ -1752,7 +1751,7 @@ async function cargarMiCartera(forzar){
       fetch(workerUrl.replace(/\/+$/, '') + '/sheet?tab=' + tab, {signal: AbortSignal.timeout(20000)})
         .then(r => { if(!r.ok) throw new Error(tab + ' ' + r.status); return r.text(); }).then(txt => ({tab, txt}))));
     mcPos = []; mcTot = {};
-    for(const {tab, txt} of res){ mcRaw[tab] = txt; const p = mcPestana(txt, tab); mcPos.push(...p.pos); mcTot[tab] = {...(p.tot || {}), cash:p.cash}; }
+    for(const {tab, txt} of res){ mcRaw[tab] = txt; const p = mcPestana(txt, tab); mcPos.push(...p.pos); mcTot[tab] = {...(p.tot || {}), cash:p.cash, cashAmt:p.cashAmt}; }
     if(!mcPos.length) throw new Error('sin posiciones en las pestañas');
     // En el SWING 2026 algunos tickers van sin bolsa (WHC, C7A0…): la bolsa se toma de su ficha
     mcPos.forEach(p => {
@@ -2163,8 +2162,13 @@ function pintarRendimiento(){
     kpi(rdTab === 'ALL' ? 'Exposición' : 'Valor', rdTab === 'ALL' ? eur(act) : mon(act)),
     kpi('Invertido', rdTab === 'ALL' ? eur(inv) : mon(inv)),
     kpi('P&L abierto', rdTab === 'ALL' ? `<span class="${pl >= 0 ? 'pos' : 'neg'}">${eur(pl)}</span>` : `<span class="${(pl || 0) >= 0 ? 'pos' : 'neg'}">${mon(pl)}</span>`, pc(plp)),
-    kpi('Posiciones', ps.length, rdTab !== 'ALL' && tot.cash != null ? `Liquidez ${(tot.cash*100).toFixed(1)}%` : ''),
+    kpi('Posiciones', ps.length),
   ];
+  // Liquidez, aparte
+  if(rdTab === 'ALL'){
+    const caja = Object.entries(mcTot).reduce((a, [k, x]) => a + (x.cashAmt || 0) * (RD_USD[k] ? 1/(rdEurUsd || 1.08) : 1), 0);
+    kpis.push(kpi('Liquidez', eur(caja), rdExtra?.capActual ? (caja/rdExtra.capActual*100).toFixed(1) + '% del capital' : ''));
+  }else if(tot.cash != null || tot.cashAmt != null) kpis.push(kpi('Liquidez', tot.cashAmt != null ? mon(tot.cashAmt) : '—', tot.cash != null ? (tot.cash*100).toFixed(1) + '%' : ''));
   if(rdTab === 'ALL' && rdExtra){
     if(rdExtra.rent != null) kpis.push(kpi('Rentabilidad año', pc(rdExtra.rent), rdExtra.pyg != null ? eur(rdExtra.pyg) : ''));
     if(rdExtra.realizadas != null) kpis.push(kpi('P&G realizadas', `<span class="${rdExtra.realizadas >= 0 ? 'pos' : 'neg'}">${eur(rdExtra.realizadas)}</span>`, pc(rdExtra.realizadasPct)));
@@ -2174,11 +2178,13 @@ function pintarRendimiento(){
   const paises = agrupar(ps, p => rdPais[p.t] ? (RD_PAIS[rdPais[p.t].c] || rdPais[p.t].c) : '…');
   const divisas = agrupar(ps, p => rdDivisa(p.t));
   const carteras = rdTab === 'ALL' ? agrupar(ps, p => p.port) : null;
+  const barras = (it) => it.map(x => `<div class="mc-sec rd-bar"><div class="mc-sec-top"><span>${esc(x.n)}</span><span>${(x.v*100).toFixed(1)}%</span></div>
+      <div class="mc-sec-bar"><i style="width:${Math.min(x.v*100, 100)}%"></i></div></div>`).join('');
   const reparto = `<div class="rd-sec">Reparto</div><div class="rd-g4">
-    ${carteras ? `<div class="card rd-c"><div class="card-cab">Exposición por cartera</div><div class="card-cuerpo">${svgDonut(carteras)}</div></div>` : ''}
-    <div class="card rd-c"><div class="card-cab">Por sector</div><div class="card-cuerpo">${svgDonut(sectores)}</div></div>
-    <div class="card rd-c"><div class="card-cab">Por país</div><div class="card-cuerpo">${svgDonut(paises)}</div></div>
-    <div class="card rd-c"><div class="card-cab">Por divisa</div><div class="card-cuerpo">${svgDonut(divisas)}</div></div></div>`;
+    ${carteras ? `<div class="card rd-c"><div class="card-cab">Exposición por cartera</div><div class="card-cuerpo">${barras(carteras)}</div></div>` : ''}
+    <div class="card rd-c"><div class="card-cab">Por sector</div><div class="card-cuerpo">${barras(sectores)}</div></div>
+    <div class="card rd-c"><div class="card-cab">Por país</div><div class="card-cuerpo">${barras(paises)}</div></div>
+    <div class="card rd-c"><div class="card-cab">Por divisa</div><div class="card-cuerpo">${barras(divisas)}</div></div></div>`;
   // Rendimiento
   const sim = rdHistListo ? rdSimulada(ps) : null;
   const orden = [...ps].filter(p => (mcPlVivo(p)?.pct ?? p.plPct) != null).sort((a, b) => (mcPlVivo(b)?.pct ?? b.plPct) - (mcPlVivo(a)?.pct ?? a.plPct));
@@ -2767,11 +2773,13 @@ async function buscarA(){
     const j = await api('/search?q=' + encodeURIComponent(term));
     const cand = ordenarCandidatos((j.quotes||[]).filter(q => q.symbol && ['EQUITY','ETF'].includes(q.quoteType)));
     if(!cand.length){ aviso('err','No encontré nada para <b>'+esc(term)+'</b>.'); return; }
-    let exacto = cand.find(c => c.symbol.toUpperCase() === term.toUpperCase());
+    const T = term.toUpperCase(), baseDe = (x) => x.symbol.toUpperCase().split('.')[0];
+    let exacto = cand.find(c => c.symbol.toUpperCase() === T);
     if(exacto && cand.indexOf(exacto) > 1) exacto = null;
-    if(exacto || cand.length === 1){ await analizar((exacto||cand[0]).symbol); }
+    // Si hay otra empresa con el mismo ticker en otra bolsa (DG: Dollar General y Vinci), se elige
+    const mismoTicker = cand.filter(c => baseDe(c) === T);
+    if(cand.length === 1 || (exacto && mismoTicker.length <= 1)){ await analizar((exacto||cand[0]).symbol); }
     else{
-      aviso('info','Varios resultados. Elige la empresa:');
       $('#aCands').innerHTML = cand.slice(0,6).map(c => `<button class="cand" data-sym="${esc(c.symbol)}">
         <span class="sym">${esc(c.symbol)}</span>
         <span class="nm">${esc(c.shortname||c.longname||'')}</span>
@@ -2787,7 +2795,6 @@ async function analizar(t, destino){
   t = String(t).toUpperCase();
   AOUT = destino === 'panel' ? '#pOut' : '#aOut';
   ANOTICE = destino === 'panel' ? '#pNotice' : '#aNotice';
-  if(destino !== 'panel') analisisPitrader(t);
   if(!enPanel()){ irA('analisis'); $('#aq').value = t; }
   if(!workerUrl){ abrirModal(); return; }
   const b = enPanel() ? null : $('#aGo');
@@ -2796,7 +2803,7 @@ async function analizar(t, destino){
   $(AOUT).innerHTML = '<div class="card"><div class="card-cuerpo"><span class="spin"></span> Leyendo fundamentales de ' + esc(t) + '…</div></div>';
   try{
     const [j, tsJ] = await Promise.all([
-      api('/summary/' + encodeURIComponent(t) + '?modules=assetProfile,price,summaryDetail,defaultKeyStatistics,financialData,incomeStatementHistory,incomeStatementHistoryQuarterly,cashflowStatementHistory,cashflowStatementHistoryQuarterly'),
+      api('/summary/' + encodeURIComponent(t) + '?modules=assetProfile,price,summaryDetail,defaultKeyStatistics,financialData,incomeStatementHistory,incomeStatementHistoryQuarterly,cashflowStatementHistory,cashflowStatementHistoryQuarterly,earningsHistory,calendarEvents,insiderTransactions'),
       api('/timeseries/' + encodeURIComponent(t) + '?types=annualTotalRevenue,annualEBIT,annualOperatingIncome,annualFreeCashFlow,annualRepurchaseOfCapitalStock,annualCommonStockIssuance,annualInterestExpense,trailingInterestExpense,quarterlyInterestExpense,annualNetNonOperatingInterestIncomeExpense,annualInterestExpenseNonOperating,trailingFreeCashFlow,annualForwardPeRatio,annualPeRatio,annualEnterprisesValueEBITDARatio,annualPriceToFreeCashFlowsRatio&years=10').catch(() => null)
     ]);
     const m = j && j.quoteSummary && j.quoteSummary.result && j.quoteSummary.result[0];
@@ -2877,9 +2884,69 @@ function prepararA(t, m, tsJ){
     cobertura: (ebitAnual && interes > 0) ? ebitAnual/interes : null,
     divYield: rv(SD.dividendYield),
     buyNetoPct: (cap && (buyback != null || issuance)) ? buyNeto/cap : null,
+    // Lo que añadía el análisis de PITrader: resultados e insiders
+    lastE: (() => { const h = ((m.earningsHistory && m.earningsHistory.history) || []).filter(x => rv(x.epsActual) != null); const l = h[h.length-1];
+      return l ? {fecha: rv(l.quarter), eps: rv(l.epsActual), est: rv(l.epsEstimate), sorpresa: rv(l.surprisePercent)} : null; })(),
+    nextEarn: (() => { const d = ((m.calendarEvents && m.calendarEvents.earnings && m.calendarEvents.earnings.earningsDate) || []).map(rv).filter(x => x); return d.length ? new Date(Math.min(...d)*1000) : null; })(),
+    insiders: ((m.insiderTransactions && m.insiderTransactions.transactions) || []).map(x => ({acc: rv(x.shares), valor: rv(x.value), fecha: rv(x.startDate), quien: x.filerName || '', cargo: x.filerRelation || '', txt: (x.transactionText || '').toLowerCase()})),
   };
 }
+/* Opciones: put/call, max pain, gamma, muros y volatilidad implícita (vencimiento más cercano) */
+const corto$ = (x) => x == null ? '—' : (Math.abs(x) >= 1e9 ? (x/1e9).toFixed(1) + 'B' : Math.abs(x) >= 1e6 ? (x/1e6).toFixed(1) + 'M' : Math.abs(x) >= 1e3 ? (x/1e3).toFixed(0) + 'K' : Math.round(x)) + '$';
+async function bloqueOpciones(t, precio){
+  const el = $('#aOpc'); if(!el) return;
+  try{
+    const j = await api('/options/' + encodeURIComponent(t));
+    const r = j && j.optionChain && j.optionChain.result && j.optionChain.result[0], o = r && r.options && r.options[0];
+    const calls = (o && o.calls) || [], puts = (o && o.puts) || [];
+    if(!calls.length && !puts.length) throw 0;
+    const S = rv(r.quote && r.quote.regularMarketPrice) ?? precio;
+    const exp = o.expirationDate ? new Date(o.expirationDate*1000) : null, dias = exp ? Math.max(Math.round((exp - Date.now())/86400000), 0) : null;
+    const Ty = Math.max(dias || 7, 0.5)/365, suma = (a, k) => a.reduce((x, c) => x + (rv(c[k]) || 0), 0);
+    const filas = [];
+    const pc = suma(calls,'volume') > 0 ? suma(puts,'volume')/suma(calls,'volume') : null;
+    filas.push(aRow('Put/Call', pc == null ? 'N/D' : fmtNum(pc,2) + (pc < 0.7 ? ' · alcista' : pc <= 1 ? ' · neutral' : ' · bajista'), pc == null ? 'nd' : pc < 0.7 ? 'ok' : pc <= 1.5 ? 'mid' : 'ko'));
+    const strikes = [...new Set([...calls, ...puts].map(c => rv(c.strike)).filter(x => x != null))].sort((a, b) => a - b);
+    let mp = null, min = Infinity;
+    strikes.forEach(K => { let d = 0;
+      calls.forEach(c => { const k = rv(c.strike), oi = rv(c.openInterest) || 0; if(k != null && K > k) d += oi*(K-k); });
+      puts.forEach(c => { const k = rv(c.strike), oi = rv(c.openInterest) || 0; if(k != null && K < k) d += oi*(k-K); });
+      if(d < min){ min = d; mp = K; } });
+    filas.push(aRow('Max pain', mp == null ? 'N/D' : fmtNum(mp,2) + '$' + (S ? ` · ${pctSig(mp/S - 1)}` : ''), mp == null ? 'nd' : ''));
+    const phi = (x) => Math.exp(-x*x/2)/Math.sqrt(2*Math.PI);
+    const g = (c, sg) => { const K = rv(c.strike), iv = rv(c.impliedVolatility), oi = rv(c.openInterest) || 0;
+      if(!K || !iv || !oi || !S || iv < 0.01) return 0; const d1 = (Math.log(S/K) + 0.5*iv*iv*Ty)/(iv*Math.sqrt(Ty));
+      return sg*(phi(d1)/(S*iv*Math.sqrt(Ty)))*oi*100*S*S*0.01; };
+    let gex = 0; calls.forEach(c => gex += g(c, 1)); puts.forEach(c => gex += g(c, -1));
+    filas.push(aRow('Gamma (GEX)', (gex >= 0 ? '+' : '') + corto$(gex) + (gex >= 0 ? ' · frena' : ' · amplifica'), gex >= 0 ? 'ok' : 'ko'));
+    const oiK = (a) => { const m = {}; a.forEach(c => { const K = rv(c.strike), oi = rv(c.openInterest) || 0; if(K != null && oi) m[K] = (m[K] || 0) + oi; }); return Object.entries(m).sort((x, y) => y[1] - x[1])[0]; };
+    const cW = oiK(calls), pW = oiK(puts);
+    if(cW || pW) filas.push(aRow('Muros', `${cW ? `<span style="color:var(--alarma)">Techo ${fmtNum(+cW[0],2)}$</span>` : ''}${cW && pW ? ' · ' : ''}${pW ? `<span style="color:var(--verde)">Suelo ${fmtNum(+pW[0],2)}$</span>` : ''}`, ''));
+    const atm = (a) => a.reduce((b, c) => { const K = rv(c.strike); return K == null || !S ? b : (!b || Math.abs(K-S) < Math.abs(rv(b.strike)-S) ? c : b); }, null);
+    const ivs = [atm(calls), atm(puts)].map(c => c && rv(c.impliedVolatility)).filter(x => x != null && x > 0.01);
+    const iv = ivs.length ? ivs.reduce((a, b) => a + b, 0)/ivs.length : null;
+    if(iv != null) filas.push(aRow('Volatilidad implícita', fmtNum(iv*100,0) + '% · ±' + fmtNum(iv*Math.sqrt(Ty)*100,1) + '%', iv > 0.8 ? 'ko' : iv > 0.5 ? 'mid' : 'ok'));
+    el.innerHTML = `<h4 class="sec">Opciones <span class="rng">${exp ? fmtCorto(exp) : ''}${dias != null ? ' · ' + dias + 'd' : ''}</span></h4>` + filas.join('');
+  }catch(e){ el.innerHTML = ''; }
+}
 
+/* Resultados, insiders y hueco para opciones: solo en la pantalla Análisis */
+function extrasAnalisis(c){
+  const L = c.lastE, res = [];
+  res.push(aRow('Últimos', L && L.eps != null ? `BPA ${fmtNum(L.eps,2)}$ vs ${L.est != null ? fmtNum(L.est,2) + '$' : '—'}${L.sorpresa != null ? ' · ' + pctSig(L.sorpresa) : ''}` : 'N/D',
+    !L || L.sorpresa == null ? 'nd' : L.sorpresa >= 0 ? 'ok' : 'ko', '', L && L.fecha ? fmtCorto(new Date(L.fecha*1000)) : ''));
+  if(c.nextEarn){ const d = Math.round((c.nextEarn - Date.now())/86400000);
+    res.push(aRow('Próximos', fmtCorto(c.nextEarn) + (d >= 0 ? ` · en ${d} día${d === 1 ? '' : 's'}` : ''), d >= 0 && d <= 14 ? 'mid' : '')); }
+  const ahora = Date.now()/1000;
+  const ins = (c.insiders || []).map(x => ({...x, compra: /purchase|buy|bought/.test(x.txt), venta: /sale|sold/.test(x.txt),
+      v: x.valor != null ? x.valor : (x.acc != null && c.precio ? Math.abs(x.acc)*c.precio : null)}))
+    .filter(x => x.fecha != null && ahora - x.fecha <= 14*86400 && (x.compra || x.venta) && x.v != null && Math.abs(x.v) >= 100000)
+    .sort((a, b) => b.fecha - a.fecha);
+  return `<h4 class="sec">Resultados</h4>${res.join('')}
+    <div id="aOpc"></div>
+    <h4 class="sec">Insiders <span class="rng">2 semanas</span></h4>
+    ${ins.length ? ins.map(x => aRow(x.compra ? 'Compra' : 'Venta', `${esc(x.quien)} · ${corto$(x.v)}`, x.compra ? 'ok' : 'ko', '', fmtCorto(new Date(x.fecha*1000)))).join('') : '<div class="vacio" style="padding:6px 0">Sin movimientos.</div>'}`;
+}
 function renderA(){
   const c = aCtx, t = c.t;
   const spark = (anual, trim) => anual ? areaSpark(anual) : miniBars(trim);
@@ -2941,7 +3008,9 @@ function renderA(){
       <h4 class="sec">Múltiplos y su mediana histórica</h4>${filas.slice(3,6).join('')}
       <h4 class="sec">Deuda</h4>${filas.slice(6,nDeuda).join('')}
       <h4 class="sec">Retribución al accionista</h4>${filas.slice(nDeuda).join('')}
+      ${enPanel() ? '' : extrasAnalisis(c)}
     </div>`;
+  if(!enPanel()) bloqueOpciones(t, c.precio);
   const elDesc = $(AOUT).querySelector('.desc');
   if(elDesc) descES(elDesc, c.resumen);
   if(!enPanel()) $(AOUT).scrollIntoView({behavior:'smooth', block:'start'});
@@ -2971,22 +3040,6 @@ $('#btnTest').addEventListener('click', async () => {
 });
 
 /* ═══════════ Navegación ═══════════ */
-/* La parte de PITrader del análisis (opciones, insiders…), debajo del fundamental */
-function analisisPitrader(t){
-  const c = $('#aPT'); if(!c) return;
-  c.innerHTML = `<iframe src="${PITRADER}?embed=analisis&t=${encodeURIComponent(t)}" title="Análisis PITrader"></iframe>`;
-}
-window.addEventListener('message', e => {
-  if(e.origin !== location.origin || !e.data || e.data.pitrader !== 'alto' || e.data.v !== 'analisis') return;
-  const f = $('#aPT iframe'); if(f) f.style.height = Math.max(200, e.data.alto) + 'px';
-});
-/* Por si el aviso no llega (pestaña en segundo plano): se mide el marco cada poco mientras se ve */
-setInterval(() => {
-  if(vista !== 'analisis') return;
-  const f = $('#aPT iframe'); if(!f) return;
-  try{ const m = f.contentDocument && f.contentDocument.querySelector('.main');
-    if(m){ const h = Math.max(200, m.scrollHeight + 4) + 'px'; if(f.style.height !== h) f.style.height = h; } }catch(e){}
-}, 1500);
 /* Las pantallas de PITrader se abren dentro, cada una en su marco, la primera vez que se entra */
 const PITRADER = 'https://srpeternac-blip.github.io/PITrader-app/';
 function abrirPitrader(v){
