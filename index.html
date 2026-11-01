@@ -544,6 +544,7 @@ h4.sec:first-child{margin-top:0}
 .crit .dash{color:var(--tenue)}
 .crit .val{font-family:var(--mono);font-size:16px;font-weight:600;white-space:nowrap}
 .crit .val.ok{color:var(--verde)} .crit .val.mid{color:var(--pos)} .crit .val.ko{color:var(--alarma)} .crit .val.nd{color:var(--tenue)}
+.crit .opc-int{flex:1 1 100%;font-size:12.5px;color:var(--media);line-height:1.5;margin-top:-4px}
 .crit .rng{color:var(--tenue);font-weight:400;font-family:var(--mono);font-size:12px;text-transform:none;letter-spacing:0}
 .med{font-family:var(--mono);font-size:12px;color:var(--media);border:1px solid var(--borde);border-radius:6px;padding:3px 9px;background:var(--banda)}
 .med.sec{color:var(--watch);border-color:rgba(111,180,255,.4);background:rgba(111,180,255,.09)}
@@ -2030,16 +2031,6 @@ async function rdCargarPaises(){
   });
   try{ localStorage.setItem('pitinvest_pais', JSON.stringify(rdPais)); }catch(e){}
 }
-async function rdCargarHistoria(){
-  const ts = [...new Set(mcPos.filter(p => p.port !== 'OPCIONES').map(p => p.t)), 'SPY'];
-  await mcPool(ts.filter(t => !rdHist[t]), 10, async (t) => {
-    try{ const j = await api('/chart/' + encodeURIComponent(t) + '?range=1y&interval=1d');
-      const r0 = j?.chart?.result?.[0], tss = r0?.timestamp || [], c = r0?.indicators?.quote?.[0]?.close || [];
-      const m = {}; tss.forEach((x, i) => { if(c[i] != null) m[new Date(x*1000).toISOString().slice(0,10)] = c[i]; });
-      rdHist[t] = m; }catch(e){}
-  });
-  rdHistListo = true;
-}
 async function cargarRendimiento(){
   if(!workerUrl){ pintarRendimiento(); return; }
   if(rdCargando) return; rdCargando = true; pintarRendimiento();
@@ -2049,34 +2040,9 @@ async function cargarRendimiento(){
   try{ await rdCargarExtra(); }catch(e){}
   rdCargando = false; pintarRendimiento();
   await rdCargarPaises(); if(vista === 'rend') pintarRendimiento();
-  await rdCargarHistoria(); if(vista === 'rend') pintarRendimiento();
 }
 
 /* —— Gráficos —— */
-function svgDonut(items, opts = {}){
-  const tot = items.reduce((a, x) => a + x.v, 0) || 1, R = 54, r = 34, cx = 64, cy = 64; let a0 = -Math.PI/2;
-  const arcos = items.map((x, i) => {
-    const a1 = a0 + x.v/tot * Math.PI*2, gr = a1 - a0 > Math.PI ? 1 : 0;
-    const p = (rad, ang) => [cx + rad*Math.cos(ang), cy + rad*Math.sin(ang)].map(n => n.toFixed(2)).join(' ');
-    const d = items.length === 1 ? `M${cx} ${cy-R}A${R} ${R} 0 1 1 ${cx-0.01} ${cy-R}L${cx-0.01} ${cy-r}A${r} ${r} 0 1 0 ${cx} ${cy-r}Z`
-      : `M${p(R,a0)}A${R} ${R} 0 ${gr} 1 ${p(R,a1)}L${p(r,a1)}A${r} ${r} 0 ${gr} 0 ${p(r,a0)}Z`;
-    a0 = a1; return `<path d="${d}" fill="${x.col || RD_COL[i % RD_COL.length]}"><title>${esc(x.n)} · ${(x.v/tot*100).toFixed(1)}%</title></path>`;
-  }).join('');
-  const ley = items.map((x, i) => `<div class="rd-ley"><i style="background:${x.col || RD_COL[i % RD_COL.length]}"></i><span>${esc(x.n)}</span><b>${(x.v/tot*100).toFixed(1)}%</b></div>`).join('');
-  return `<div class="rd-donut"><svg viewBox="0 0 128 128" width="128" height="128">${arcos}${opts.centro ? `<text x="64" y="69" text-anchor="middle" class="rd-dc">${esc(opts.centro)}</text>` : ''}</svg><div class="rd-leys">${ley}</div></div>`;
-}
-function svgLineas(series, alto = 260){
-  const W = 1000, H = alto, pad = {l:44, r:12, t:12, b:24};
-  const todos = series.flatMap(s => s.p.map(x => x[1])); if(!todos.length) return '';
-  let mn = Math.min(...todos), mx = Math.max(...todos); const m = (mx - mn) * .08 || 1; mn -= m; mx += m;
-  const n = series[0].p.length, X = (i) => pad.l + i/(n-1) * (W - pad.l - pad.r), Y = (v) => pad.t + (1 - (v-mn)/(mx-mn)) * (H - pad.t - pad.b);
-  const ejes = [0, .25, .5, .75, 1].map(f => { const v = mn + (mx-mn)*f;
-    return `<line x1="${pad.l}" x2="${W-pad.r}" y1="${Y(v)}" y2="${Y(v)}" class="rd-grid"/><text x="${pad.l-6}" y="${Y(v)+4}" text-anchor="end" class="rd-ax">${(v-100).toFixed(0)}%</text>`; }).join('');
-  const meses = []; let prev = '';
-  series[0].p.forEach((x, i) => { const mm = x[0].slice(0,7); if(mm !== prev && i){ meses.push(`<text x="${X(i)}" y="${H-6}" text-anchor="middle" class="rd-ax">${cap(MESES[+mm.slice(5)-1].slice(0,3))}</text>`); } prev = mm; });
-  const lineas = series.map(s => `<polyline fill="none" stroke="${s.col}" stroke-width="${s.w || 2}" stroke-linejoin="round" points="${s.p.map((x, i) => X(i).toFixed(1) + ',' + Y(x[1]).toFixed(1)).join(' ')}"/>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" class="rd-svg">${ejes}<line x1="${pad.l}" x2="${W-pad.r}" y1="${Y(100)}" y2="${Y(100)}" class="rd-cero"/>${meses.join('')}${lineas}</svg>`;
-}
 function barrasH(items, fmt){
   const mx = Math.max(...items.map(x => Math.abs(x.v)), 1);
   return `<div class="rd-hb">${items.map(x => `<div class="rd-hbf"><span class="rd-hbn">${esc(x.n)}</span>
@@ -2110,32 +2076,6 @@ function agrupar(ps, clave, max = 8){
   let it = Object.entries(g).map(([n, v]) => ({n, v})).sort((a, b) => b.v - a.v);
   if(it.length > max){ const resto = it.slice(max-1).reduce((a, x) => a + x.v, 0); it = [...it.slice(0, max-1), {n:'Otros', v:resto}]; }
   return it;
-}
-/* Cartera simulada: posiciones de hoy con sus pesos, un año de precios */
-function rdSimulada(ps){
-  const conH = ps.filter(p => p.port !== 'OPCIONES' && rdHist[p.t] && Object.keys(rdHist[p.t]).length > 30);
-  const spy = rdHist.SPY; if(!conH.length || !spy) return null;
-  const fechas = Object.keys(spy).sort(); const sw = conH.reduce((a, p) => a + p.w, 0) || 1;
-  const ult = {}; let base = null; const serie = [], spySerie = [];
-  fechas.forEach(f => {
-    let v = 0; conH.forEach(p => { const c = rdHist[p.t][f]; if(c != null) ult[p.t] = c; });
-    if(!base){ if(conH.every(p => ult[p.t] != null)) base = {...ult}; else return; }
-    conH.forEach(p => { v += p.w/sw * (ult[p.t] ?? base[p.t]) / base[p.t]; });
-    serie.push([f, v*100]); spySerie.push([f, spy[f]]);
-  });
-  if(serie.length < 20) return null;
-  const s0 = spySerie[0][1]; spySerie.forEach(x => x[1] = x[1]/s0*100);
-  const ret = (s, d) => { const i = Math.max(0, s.length - 1 - d); return s[s.length-1][1]/s[i][1] - 1; };
-  const ini = new Date().getFullYear() + '-01-01', iy = serie.findIndex(x => x[0] >= ini);
-  const ytd = (s) => iy >= 0 ? s[s.length-1][1]/s[Math.max(0, iy-1)][1] - 1 : null;
-  const rets = (s) => s.slice(1).map((x, i) => x[1]/s[i][1] - 1);
-  const rc = rets(serie), rs = rets(spySerie), med = (a) => a.reduce((x, y) => x + y, 0)/a.length;
-  const mc = med(rc), ms = med(rs);
-  const cov = med(rc.map((x, i) => (x - mc)*(rs[i] - ms))), vs = med(rs.map(x => (x - ms)**2)), vc = med(rc.map(x => (x - mc)**2));
-  let pico = 0, dd = 0; serie.forEach(x => { pico = Math.max(pico, x[1]); dd = Math.min(dd, x[1]/pico - 1); });
-  return {serie, spySerie, cubre: sw,
-    per: [['1S',5],['1M',21],['3M',63]].map(([n, d]) => ({n, c:ret(serie, d), s:ret(spySerie, d)})).concat([{n:'Año', c:ytd(serie), s:ytd(spySerie)}]),
-    vol: Math.sqrt(vc*252), beta: vs ? cov/vs : null, dd};
 }
 
 function pintarRendimiento(){
@@ -2186,7 +2126,6 @@ function pintarRendimiento(){
     <div class="card rd-c"><div class="card-cab">Por país</div><div class="card-cuerpo">${barras(paises)}</div></div>
     <div class="card rd-c"><div class="card-cab">Por divisa</div><div class="card-cuerpo">${barras(divisas)}</div></div></div>`;
   // Rendimiento
-  const sim = rdHistListo ? rdSimulada(ps) : null;
   const orden = [...ps].filter(p => (mcPlVivo(p)?.pct ?? p.plPct) != null).sort((a, b) => (mcPlVivo(b)?.pct ?? b.plPct) - (mcPlVivo(a)?.pct ?? a.plPct));
   const lineaTop = (p) => `<div class="mc-li"><b>${esc(p.t)}</b> ${esc(p.name)} <span style="float:right">${pc(mcPlVivo(p)?.pct ?? p.plPct)}</span></div>`;
   const contrib = [...ps].sort((a, b) => b.plEur - a.plEur), ctb = [...contrib.slice(0, 6), ...contrib.slice(-6).filter(p => !contrib.slice(0, 6).includes(p))]
@@ -2194,10 +2133,6 @@ function pintarRendimiento(){
   const meses = rdTab === 'ALL' && rdExtra?.meses?.total ? rdExtra.meses.total : null;
   const hasta = new Date().getMonth() + 1;
   const rend = `<div class="rd-sec">Rendimiento</div>
-    ${rdTab === 'OPCIONES' ? '' : `<div class="card"><div class="card-cab">Cartera vs S&amp;P 500 <span class="rd-tag">simulada</span>
-      <span class="cnt"><i class="rd-dot" style="background:var(--pos)"></i>Cartera <i class="rd-dot" style="background:var(--media)"></i>S&amp;P 500</span></div>
-      <div class="card-cuerpo">${sim ? `<div class="rd-per">${sim.per.map(x => `<div><span>${x.n}</span><b>${pc(x.c)}</b><em>S&amp;P ${pc(x.s)}</em></div>`).join('')}</div>
-        ${svgLineas([{p:sim.spySerie, col:'#75739a', w:1.5}, {p:sim.serie, col:'#f7b83c', w:2.2}])}` : '<span class="spin"></span>'}</div></div>`}
     ${meses ? `<div class="card"><div class="card-cab">P&amp;G realizadas por mes</div><div class="card-cuerpo">${barrasMes(meses.slice(0, hasta), MESES.slice(0, hasta).map(m => cap(m.slice(0,3))))}</div></div>` : ''}
     <div class="rd-g2">
       <div class="card"><div class="card-cab">Mejores</div><div class="card-cuerpo">${orden.slice(0, 5).map(lineaTop).join('') || '—'}</div></div>
@@ -2213,9 +2148,6 @@ function pintarRendimiento(){
     ${kpi('Top 5', (suma(5)*100).toFixed(1) + '%')}
     ${kpi('Top 10', (suma(10)*100).toFixed(1) + '%')}
     ${kpi('Nº efectivo', efectivo.toFixed(1), 'posiciones')}
-    ${rdTab === 'OPCIONES' ? '' : kpi('Volatilidad anual', sim ? (sim.vol*100).toFixed(1) + '%' : '…')}
-    ${rdTab === 'OPCIONES' ? '' : kpi('Beta vs S&P', sim && sim.beta != null ? sim.beta.toFixed(2) : '…')}
-    ${rdTab === 'OPCIONES' ? '' : kpi('Caída máxima 1 año', sim ? pc(sim.dd) : '…')}
     ${(rdTab === 'ALL' || rdTab === 'SWING' || rdTab === 'CORE') && ib.PALANCA ? kpi('Palanca IBKR', esc(ib.PALANCA), ib['COLCHÓN'] ? 'Colchón ' + esc(ib['COLCHÓN']) : '') : ''}
     ${(rdTab === 'ALL' || rdTab === 'QF') && qf.PALANCA ? kpi('Palanca QF', esc(qf.PALANCA), qf.PODER ? 'Poder ' + esc(qf.PODER) : '') : ''}
   </div>`;
@@ -2224,7 +2156,7 @@ function pintarRendimiento(){
 $('#rend').addEventListener('click', e => {
   const b = e.target.closest('[data-rd-tab]');
   if(b){ rdTab = b.dataset.rdTab; try{ localStorage.setItem('pitinvest_rd_tab', rdTab); }catch(x){} pintarRendimiento(); return; }
-  if(e.target.closest('[data-rd-ref]')){ mcOk = false; rdHist = {}; rdHistListo = false; rdExtra = null; cargarRendimiento(); }
+  if(e.target.closest('[data-rd-ref]')){ mcOk = false; rdExtra = null; cargarRendimiento(); }
 });
 
 /* ═══════════ CALENDARIO ═══════════ */
@@ -2919,27 +2851,39 @@ async function bloqueOpciones(t, precio){
     const Ty = Math.max(dias || 7, 0.5)/365, suma = (a, k) => a.reduce((x, c) => x + (rv(c[k]) || 0), 0);
     const filas = [];
     const pc = suma(calls,'volume') > 0 ? suma(puts,'volume')/suma(calls,'volume') : null;
-    filas.push(aRow('Put/Call', pc == null ? 'N/D' : fmtNum(pc,2) + (pc < 0.7 ? ' · alcista' : pc <= 1 ? ' · neutral' : ' · bajista'), pc == null ? 'nd' : pc < 0.7 ? 'ok' : pc <= 1.5 ? 'mid' : 'ko'));
+    const int = (t) => `<span class="opc-int">${t}</span>`;
+    filas.push(aRow('Put/Call', pc == null ? 'N/D' : fmtNum(pc,2) + (pc < 0.7 ? ' · alcista' : pc <= 1 ? ' · neutral' : ' · bajista'), pc == null ? 'nd' : pc < 0.7 ? 'ok' : pc <= 1.5 ? 'mid' : 'ko',
+      pc == null ? '' : int(pc < 0.5 ? 'Se compran muchas más calls que puts: el mercado apuesta fuerte por subidas. Tanto optimismo a veces avisa de techo.'
+        : pc < 0.7 ? 'Se compran más calls que puts: el mercado apuesta por subidas.'
+        : pc <= 1 ? 'Apuestas equilibradas entre subida y bajada.'
+        : pc <= 1.5 ? 'Más puts que calls: el mercado se cubre o apuesta por caídas.'
+        : 'Miedo fuerte. En extremos así suele coincidir con suelos.')));
     const strikes = [...new Set([...calls, ...puts].map(c => rv(c.strike)).filter(x => x != null))].sort((a, b) => a - b);
     let mp = null, min = Infinity;
     strikes.forEach(K => { let d = 0;
       calls.forEach(c => { const k = rv(c.strike), oi = rv(c.openInterest) || 0; if(k != null && K > k) d += oi*(K-k); });
       puts.forEach(c => { const k = rv(c.strike), oi = rv(c.openInterest) || 0; if(k != null && K < k) d += oi*(k-K); });
       if(d < min){ min = d; mp = K; } });
-    filas.push(aRow('Max pain', mp == null ? 'N/D' : fmtNum(mp,2) + '$' + (S ? ` · ${pctSig(mp/S - 1)}` : ''), mp == null ? 'nd' : ''));
+    filas.push(aRow('Max pain', mp == null ? 'N/D' : fmtNum(mp,2) + '$' + (S ? ` · ${pctSig(mp/S - 1)}` : ''), mp == null ? 'nd' : '',
+      mp == null || !S ? '' : int(`Precio al que más opciones caducan sin valor. Al acercarse el vencimiento el precio tiende a ir hacia él: ${Math.abs(mp/S - 1) < 0.01 ? 'ya está prácticamente ahí' : mp > S ? 'tira hacia arriba' : 'tira hacia abajo'}.`)));
     const phi = (x) => Math.exp(-x*x/2)/Math.sqrt(2*Math.PI);
     const g = (c, sg) => { const K = rv(c.strike), iv = rv(c.impliedVolatility), oi = rv(c.openInterest) || 0;
       if(!K || !iv || !oi || !S || iv < 0.01) return 0; const d1 = (Math.log(S/K) + 0.5*iv*iv*Ty)/(iv*Math.sqrt(Ty));
       return sg*(phi(d1)/(S*iv*Math.sqrt(Ty)))*oi*100*S*S*0.01; };
     let gex = 0; calls.forEach(c => gex += g(c, 1)); puts.forEach(c => gex += g(c, -1));
-    filas.push(aRow('Gamma (GEX)', (gex >= 0 ? '+' : '') + corto$(gex) + (gex >= 0 ? ' · frena' : ' · amplifica'), gex >= 0 ? 'ok' : 'ko'));
+    filas.push(aRow('Gamma (GEX)', (gex >= 0 ? '+' : '') + corto$(gex) + (gex >= 0 ? ' · frena' : ' · amplifica'), gex >= 0 ? 'ok' : 'ko',
+      int(gex >= 0 ? 'No dice si sube o baja, sino cuánto se mueve. Positivo: los creadores de mercado compran en las caídas y venden en las subidas, así que frenan los movimientos y el precio tiende a quedarse en rango.'
+        : 'No dice si sube o baja, sino cuánto se mueve. Negativo: los creadores de mercado compran en las subidas y venden en las caídas, así que amplifican los movimientos: más volatilidad en las dos direcciones.')));
     const oiK = (a) => { const m = {}; a.forEach(c => { const K = rv(c.strike), oi = rv(c.openInterest) || 0; if(K != null && oi) m[K] = (m[K] || 0) + oi; }); return Object.entries(m).sort((x, y) => y[1] - x[1])[0]; };
     const cW = oiK(calls), pW = oiK(puts);
-    if(cW || pW) filas.push(aRow('Muros', `${cW ? `<span style="color:var(--alarma)">Techo ${fmtNum(+cW[0],2)}$</span>` : ''}${cW && pW ? ' · ' : ''}${pW ? `<span style="color:var(--verde)">Suelo ${fmtNum(+pW[0],2)}$</span>` : ''}`, ''));
+    if(cW || pW) filas.push(aRow('Muros', `${cW ? `<span style="color:var(--alarma)">Techo ${fmtNum(+cW[0],2)}$</span>` : ''}${cW && pW ? ' · ' : ''}${pW ? `<span style="color:var(--verde)">Suelo ${fmtNum(+pW[0],2)}$</span>` : ''}`, '',
+      int('Los precios con más contratos abiertos. Hasta el vencimiento, el techo suele frenar las subidas y el suelo las caídas.')));
     const atm = (a) => a.reduce((b, c) => { const K = rv(c.strike); return K == null || !S ? b : (!b || Math.abs(K-S) < Math.abs(rv(b.strike)-S) ? c : b); }, null);
     const ivs = [atm(calls), atm(puts)].map(c => c && rv(c.impliedVolatility)).filter(x => x != null && x > 0.01);
     const iv = ivs.length ? ivs.reduce((a, b) => a + b, 0)/ivs.length : null;
-    if(iv != null) filas.push(aRow('Volatilidad implícita', fmtNum(iv*100,0) + '% · ±' + fmtNum(iv*Math.sqrt(Ty)*100,1) + '%', iv > 0.8 ? 'ko' : iv > 0.5 ? 'mid' : 'ok'));
+    if(iv != null){ const mov = iv*Math.sqrt(Ty);
+      filas.push(aRow('Volatilidad implícita', fmtNum(iv*100,0) + '% · ±' + fmtNum(mov*100,1) + '%', iv > 0.8 ? 'ko' : iv > 0.5 ? 'mid' : 'ok',
+        int(`Lo que el mercado espera que se mueva hasta el vencimiento: entre ${S ? fmtNum(S*(1-mov),2) + '$ y ' + fmtNum(S*(1+mov),2) + '$' : '±' + fmtNum(mov*100,1) + '%'}. ${iv > 0.8 ? 'Opciones muy caras.' : iv > 0.5 ? 'Opciones caras.' : 'Primas razonables.'}`))); }
     el.innerHTML = `<h4 class="sec">Opciones <span class="rng">${exp ? fmtCorto(exp) : ''}${dias != null ? ' · ' + dias + 'd' : ''}</span></h4>` + filas.join('');
   }catch(e){ el.innerHTML = ''; }
 }
