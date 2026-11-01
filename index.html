@@ -2787,8 +2787,12 @@ async function buscarA(){
     let exacto = cand.find(c => c.symbol.toUpperCase() === T);
     if(exacto && cand.indexOf(exacto) > 1) exacto = null;
     // Si hay otra empresa con el mismo ticker en otra bolsa (DG: Dollar General y Vinci), se elige
+    const empresa = (c) => String(c.shortname || c.longname || c.symbol).toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ')[0];
     const mismoTicker = cand.filter(c => baseDe(c) === T);
-    if(cand.length === 1 || (exacto && mismoTicker.length <= 1)){ await analizar((exacto||cand[0]).symbol); }
+    const empresas = new Set(mismoTicker.map(empresa));
+    // Primero las que tienen justo ese ticker
+    cand = [...mismoTicker, ...cand.filter(c => baseDe(c) !== T)];
+    if(cand.length === 1 || (exacto && empresas.size <= 1)){ await analizar((exacto||cand[0]).symbol); }
     else{
       $('#aCands').innerHTML = cand.slice(0,6).map(c => `<button class="cand" data-sym="${esc(c.symbol)}">
         <span class="sym">${esc(c.symbol)}</span>
