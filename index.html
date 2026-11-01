@@ -2771,7 +2771,17 @@ async function buscarA(){
   aviso('',''); $('#aCands').innerHTML = '';
   try{
     const j = await api('/search?q=' + encodeURIComponent(term));
-    const cand = ordenarCandidatos((j.quotes||[]).filter(q => q.symbol && ['EQUITY','ETF'].includes(q.quoteType)));
+    let cand = ordenarCandidatos((j.quotes||[]).filter(q => q.symbol && ['EQUITY','ETF'].includes(q.quoteType)));
+    // El buscador de Yahoo solo da la de EE. UU. con ese ticker: se prueba en las bolsas principales (DG → Vinci en París)
+    if(/^[A-Za-z0-9]{1,6}$/.test(term)){
+      const T = term.toUpperCase(), sfx = ['PA','L','DE','AS','MC','MI','SW','TO','V','AX','HK','F'];
+      const extra = (await Promise.all(sfx.map(x => api('/chart/' + T + '.' + x + '?range=1d&interval=1d').then(r => {
+        const m = r && r.chart && r.chart.result && r.chart.result[0] && r.chart.result[0].meta;
+        return m && m.symbol ? {symbol:m.symbol, shortname:m.longName || m.shortName || '', exchDisp:m.fullExchangeName || x} : null; }).catch(() => null)))).filter(Boolean);
+      // Una sola por empresa: si ya está en la lista (mismo nombre), no se repite
+      const nombre = (c) => String(c.shortname || c.longname || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 8);
+      extra.forEach(c => { if(!cand.some(x => x.symbol === c.symbol || (nombre(x) && nombre(x) === nombre(c)))) cand.push(c); });
+    }
     if(!cand.length){ aviso('err','No encontré nada para <b>'+esc(term)+'</b>.'); return; }
     const T = term.toUpperCase(), baseDe = (x) => x.symbol.toUpperCase().split('.')[0];
     let exacto = cand.find(c => c.symbol.toUpperCase() === T);
