@@ -409,6 +409,7 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .er-d{font-family:var(--mono);font-size:12.5px;flex:none}
 .er-d.hit{color:var(--verde)} .er-d.near{color:var(--pos)} .er-d.far{color:var(--tenue)}
 .er-go{color:var(--ac);font-size:16px;flex:none}
+.er-v{flex:1 1 100%;font-size:12.5px;color:var(--media);line-height:1.5;padding-left:2px}
 .ses-b{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.1em;padding:3px 7px;border-radius:5px;flex:none}
 .b-bmo{background:rgba(255,159,69,.18);color:var(--naranja)}
 .b-amc{background:rgba(167,139,250,.18);color:var(--malva)}
@@ -1377,20 +1378,22 @@ function filaCol(c){
   </${et}>`;
 }
 /* Agenda: fila ancha, ahí sí interesa cuánto falta para el nivel */
-function filaResultado(c){
+function filaResultado(c, conVigilar){
   const p = c.mia ? posicionDe(c.ticker) : null;
   const f = p && p.ficha;
   const d = p ? distancia(p.precio, p.entrada, 'entrada') : null;
   const et = f ? 'button' : 'div';
-  const ses = c.sesion === 'BMO' ? 'ANTES' : c.sesion === 'AMC' ? 'CIERRE' : 'S/C';
+  const ses = c.sesion === 'BMO' ? 'PRE-MARKET' : c.sesion === 'AMC' ? 'POST-MARKET' : 'S/C';
   return `<${et} class="er ${p?'mia '+p.clase:''}" ${f?`data-ir="${esc(f.TICKER)}"`:''}>
     <span class="ses-b b-${c.sesion.toLowerCase()}">${ses}</span>
     <span class="er-t">${esc(c.ticker)}</span>
     <span class="er-n">${esc(c.nombre || '')}</span>
     ${d ? `<span class="er-d ${d.cls}">${esc(d.txt)}</span>` : ''}
     ${f ? '<span class="er-go">›</span>' : ''}
+    ${conVigilar && f && has(f.QUE_VIGILAR) ? `<span class="er-v">${esc(resumirTexto(f.QUE_VIGILAR, 220))}</span>` : ''}
   </${et}>`;
 }
+const resumirTexto = (t, n) => { t = String(t).replace(/\s+/g, ' ').trim(); if(t.length <= n) return t; const c = t.slice(0, n); return c.slice(0, c.lastIndexOf(' ')) + '…'; };
 function grupo(titulo, cls, arr){
   if(!arr.length) return '';
   const mias = arr.filter(x => x.mia);
@@ -1411,7 +1414,20 @@ function porSesiones(res){
        + grupo('Tras el cierre','ses-amc',amc)
        + grupo('Sin confirmar','ses-unk',unk);
 }
-function filaMacro(m){
+/* Cómo puede afectar cada dato a la cartera (lo que tiene: energía, materiales, tecnología, consumo) */
+const EFECTO_MACRO = [
+  [/nóminas|paro|salario/i, 'Empleo fuerte: menos bajadas de tipos, presiona a tecnología y crecimiento. Débil: miedo a recesión, castiga cíclicas y energía.'],
+  [/ipc|ipp|pce/i, 'Inflación alta: tipos altos más tiempo, castiga tecnología y crecimiento y apoya energía y materias primas. Baja: alivio para crecimiento.'],
+  [/pib/i, 'Fuerte: bien para cíclicas, energía y materiales. Débil: mejor aguantan consumo básico y salud.'],
+  [/fed/i, 'Mueve todo el mercado: tono suave impulsa crecimiento y pequeñas compañías; tono duro las castiga y sube el dólar.'],
+  [/ventas minoristas|confianza/i, 'Mide el consumo: afecta a tus empresas de consumo discrecional.'],
+  [/ism manufacturero|duraderos/i, 'Actividad industrial: afecta a materiales, industriales y energía.'],
+  [/ism de servicios/i, 'Economía de servicios, el grueso de EE. UU.: fuerte apoya al mercado, pero también a tipos altos.'],
+  [/crudo/i, 'Directo a tus petroleras y gas: si suben los inventarios, presiona el crudo a la baja; si bajan, lo apoya.']
+];
+function filaMacro(m, conEfecto){
+  const efecto = conEfecto && !has(m.nota) ? (EFECTO_MACRO.find(([re]) => re.test(m.evento)) || [])[1] : null;
+  if(efecto) m = {...m, nota: efecto};
   const imp = (m.importancia || '').toLowerCase();
   const cls = ['alta','media','baja'].includes(imp) ? imp : 'media';
   return `<div class="mr">
@@ -1490,8 +1506,16 @@ function pintarEventos(){
 function pintarAgenda(){
   const hoy = hoyISO(), hoyD = new Date();
   const res = resultadosDelDia(hoy) || [], mac = macroDe(hoy);
-  const mias = res.filter(c => c.mia);
-  const otras = res.filter(c => !c.mia).slice(0, 12);
+  // Solo las suyas: primero pre-market, luego post-market, luego sin confirmar
+  const ordenSes = {BMO:0, AMC:1};
+  const mias = res.filter(c => c.mia).sort((a, b) => (ordenSes[a.sesion] ?? 2) - (ordenSes[b.sesion] ?? 2));
+  // Dividendos de hoy (fecha ex o pago) de lo que tiene en cartera
+  const divs = [];
+  fichas.filter(f => (f.ESTADO || '').toLowerCase() === 'cartera').forEach(f => {
+    const ev = misEventos[String(f.TICKER).toUpperCase()] || {};
+    if(ev.ex === hoy) divs.push({f, txt:'Fecha ex-dividendo'});
+    if(ev.pago === hoy) divs.push({f, txt:'Pago del dividendo'});
+  });
 
   const abiertas = pendientes.filter(p => (p.ESTADO || 'abierto').toLowerCase() !== 'cerrado');
   const pend = abiertas.map(p => ({...p, dias: diasHasta(p.FECHA_LIMITE)}))
@@ -1503,16 +1527,22 @@ function pintarAgenda(){
     <div class="scr-h"><div><h1>Agenda del día</h1><span class="rango">${esc(fmtLargo(hoyD))}</span></div></div>
 
     <div class="card">
-      <div class="card-cab">Hoy presentan ${res.length?`<span class="cnt">${mias.length} tuya${mias.length===1?'':'s'} · ${res.length} en total</span>`:''}</div>
+      <div class="card-cab">Hoy presentan ${mias.length?`<span class="cnt">${mias.length}</span>`:''}</div>
       <div class="card-cuerpo">
-        ${mias.length ? mias.map(filaResultado).join('') : '<div class="vacio">Ninguna tuya presenta hoy.</div>'}
-        ${otras.length ? '<div class="ses-tit ses-unk" style="margin-top:13px">Otras relevantes</div>' + otras.map(filaResultado).join('') : ''}
+        ${mias.length ? mias.map(c => filaResultado(c, true)).join('') : '<div class="vacio">Ninguna tuya presenta hoy.</div>'}
       </div>
     </div>
 
     <div class="card">
       <div class="card-cab">Macro de hoy ${mac.length?`<span class="cnt">${mac.length}</span>`:''}</div>
-      <div class="card-cuerpo">${mac.length ? mac.map(filaMacro).join('') : '<div class="vacio">Nada hoy.</div>'}</div>
+      <div class="card-cuerpo">${mac.length ? mac.map(m => filaMacro(m, true)).join('') : '<div class="vacio">Nada hoy.</div>'}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-cab">Dividendos de hoy ${divs.length?`<span class="cnt">${divs.length}</span>`:''}</div>
+      <div class="card-cuerpo">${divs.length ? divs.map(d => `<button class="er mia cartera" data-ir="${esc(d.f.TICKER)}">
+          <span class="er-t">${esc(d.f.TICKER)}</span><span class="er-n">${esc(nombreDe(d.f))}</span><span class="er-d near">${esc(d.txt)}</span><span class="er-go">›</span></button>`).join('')
+        : '<div class="vacio">Nada hoy.</div>'}</div>
     </div>
 
     <div class="card">
