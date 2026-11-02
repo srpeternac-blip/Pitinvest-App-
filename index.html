@@ -409,6 +409,11 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .er-d{font-family:var(--mono);font-size:12.5px;flex:none}
 .er-d.hit{color:var(--verde)} .er-d.near{color:var(--pos)} .er-d.far{color:var(--tenue)}
 .er-go{color:var(--ac);font-size:16px;flex:none}
+.ag-btns{display:flex;gap:6px;flex:none;margin-left:auto}
+.ag-btns .btn-mini{padding:5px 11px;font-size:12.5px}
+.ag-niv{flex:1 1 100%;font-family:var(--mono);font-size:12.5px;padding-left:2px}
+.ag-niv .nl2-t{font-weight:700}
+.ag-niv .sep{color:var(--tenue)}
 .er-v{flex:1 1 100%;font-size:12.5px;color:var(--media);line-height:1.5;padding-left:2px}
 .ses-b{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.1em;padding:3px 7px;border-radius:5px;flex:none}
 .b-bmo{background:rgba(255,159,69,.18);color:var(--naranja)}
@@ -1378,6 +1383,27 @@ function filaCol(c){
   </${et}>`;
 }
 /* Agenda: fila ancha, ahí sí interesa cuánto falta para el nivel */
+/* Agenda: fila con botones Ficha y Análisis, y debajo qué mirar cuando salgan los resultados */
+function filaAgenda(c){
+  const p = posicionDe(c.ticker), f = p && p.ficha;
+  const ses = c.sesion === 'BMO' ? 'PRE-MARKET' : c.sesion === 'AMC' ? 'POST-MARKET' : 'S/C';
+  let mirar = '';
+  if(f){
+    const div = divisaDe(f.SIMBOLO_GF), v = (x) => esc(String(x).trim()) + esc(div);
+    const niv = [[f.ENTRADA_1,'Aumentar','n-aum'],[f.ENTRADA_2,'Aumentar','n-aum'],[f.PARCIAL,'Parcial','n-par'],[f.SALIDA,'TP','n-tp'],[f.ZONA_INTERES,'Zona','n-int']]
+      .filter(([x]) => has(x)).map(([x, l, cls]) => `<span class="${cls}"><span class="nl2-t">${l}</span> ${v(x)}</span>`).join('<span class="sep"> · </span>');
+    const txt = has(f.PLAN_ACCION) ? f.PLAN_ACCION : f.QUE_VIGILAR;
+    mirar = (niv ? `<span class="ag-niv">${niv}</span>` : '') + (has(txt) ? `<span class="er-v">${esc(resumirTexto(txt, 220))}</span>` : '');
+  }
+  const sym = f && has(f.SIMBOLO_GF) ? mcYahoo(f.SIMBOLO_GF) : c.ticker;
+  return `<div class="er mia ${p ? p.clase : ''}">
+    <span class="ses-b b-${c.sesion.toLowerCase()}">${ses}</span>
+    <span class="er-t">${esc(c.ticker)}</span>
+    <span class="er-n">${esc(c.nombre || '')}</span>
+    <span class="ag-btns">${f ? `<button class="btn-mini" data-ag-ficha="${esc(f.TICKER)}">Ficha</button>` : ''}<button class="btn-mini" data-ag-anal="${esc(sym)}">Análisis</button></span>
+    ${mirar}
+  </div>`;
+}
 function filaResultado(c, conVigilar){
   const p = c.mia ? posicionDe(c.ticker) : null;
   const f = p && p.ficha;
@@ -1529,7 +1555,7 @@ function pintarAgenda(){
     <div class="card">
       <div class="card-cab">Hoy presentan ${mias.length?`<span class="cnt">${mias.length}</span>`:''}</div>
       <div class="card-cuerpo">
-        ${mias.length ? mias.map(c => filaResultado(c, true)).join('') : '<div class="vacio">Ninguna tuya presenta hoy.</div>'}
+        ${mias.length ? mias.map(filaAgenda).join('') : '<div class="vacio">Ninguna tuya presenta hoy.</div>'}
       </div>
     </div>
 
@@ -1540,8 +1566,9 @@ function pintarAgenda(){
 
     <div class="card">
       <div class="card-cab">Dividendos de hoy ${divs.length?`<span class="cnt">${divs.length}</span>`:''}</div>
-      <div class="card-cuerpo">${divs.length ? divs.map(d => `<button class="er mia cartera" data-ir="${esc(d.f.TICKER)}">
-          <span class="er-t">${esc(d.f.TICKER)}</span><span class="er-n">${esc(nombreDe(d.f))}</span><span class="er-d near">${esc(d.txt)}</span><span class="er-go">›</span></button>`).join('')
+      <div class="card-cuerpo">${divs.length ? divs.map(d => `<div class="er mia cartera">
+          <span class="er-t">${esc(d.f.TICKER)}</span><span class="er-n">${esc(nombreDe(d.f))}</span><span class="er-d near">${esc(d.txt)}</span>
+          <span class="ag-btns" style="margin-left:0"><button class="btn-mini" data-ag-ficha="${esc(d.f.TICKER)}">Ficha</button><button class="btn-mini" data-ag-anal="${esc(has(d.f.SIMBOLO_GF) ? mcYahoo(d.f.SIMBOLO_GF) : d.f.TICKER)}">Análisis</button></span></div>`).join('')
         : '<div class="vacio">Nada hoy.</div>'}</div>
     </div>
 
@@ -3071,6 +3098,8 @@ function irAFicha(tk){ irA('fichas'); abrir(tk); }
     else { offMacro = n === 0 ? 0 : offMacro + n; pintarMacro(); cargarMacroSemana(offMacro); }
     return;
   }
+  const fa = e.target.closest('[data-ag-ficha]'); if(fa){ irAFicha(fa.dataset.agFicha); return; }
+  const an = e.target.closest('[data-ag-anal]'); if(an){ analizar(an.dataset.agAnal); return; }
   const b = e.target.closest('[data-ir]'); if(b) irAFicha(b.dataset.ir);
 }));
 $('#lhead').addEventListener('click', () => {
