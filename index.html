@@ -1296,78 +1296,91 @@ function resultadosDelDia(iso){
 }
 
 /* ═══════════ Macro ═══════════ */
-/* Solo lo de tres estrellas de Estados Unidos. Lista cerrada a propósito:
-   cualquier cosa que no esté aquí no entra, por mucho que lo publique Nasdaq.
-   Traducción al español para que la pantalla se lea de un vistazo. */
-const TRES_ESTRELLAS = [
-  [/nonfarm payroll|employment situation|non-farm payroll/i, 'Nóminas no agrícolas'],
-  [/unemployment rate/i,                                     'Tasa de paro'],
-  [/average hourly earnings/i,                               'Salario medio por hora'],
-  [/\bcore cpi\b|cpi.*(core|ex food)/i,                      'IPC subyacente'],
-  [/\bcpi\b|consumer price index/i,                          'IPC'],
-  [/\bcore ppi\b/i,                                          'IPP subyacente'],
-  [/\bppi\b|producer price index/i,                          'IPP'],
-  [/core pce|pce price index/i,                              'PCE subyacente'],
-  [/\bgdp\b|gross domestic product/i,                        'PIB'],
-  [/fomc|federal funds rate|interest rate decision|rate decision/i, 'Decisión de tipos de la Fed'],
-  [/fed chair|powell/i,                                      'Comparecencia del presidente de la Fed'],
-  [/retail sales/i,                                          'Ventas minoristas'],
-  [/ism.*(manufacturing|mfg)/i,                              'ISM manufacturero'],
-  [/ism.*(services|non-manufacturing)/i,                     'ISM de servicios'],
-  [/initial jobless claims/i,                                'Paro semanal'],
-  [/\bcb consumer confidence|consumer confidence index/i,     'Confianza del consumidor'],
-  [/michigan consumer sentiment/i,                           'Confianza de Michigan'],
-  [/durable goods orders/i,                                  'Pedidos de bienes duraderos'],
-  [/crude oil inventories/i,                                 'Inventarios de crudo']
+/* Lista cerrada: solo lo que mueve su cartera. País + nombre exacto en Nasdaq
+   → nombre en español e importancia. Lo que no esté aquí no entra. */
+const MACRO_LISTA = [
+  ['United States', /^Nonfarm Payrolls$/,                       'Empleo de EE. UU. (nóminas)', 'alta'],
+  ['United States', /^Unemployment Rate$/,                      'Tasa de paro EE. UU.', 'alta'],
+  ['United States', /^Average Hourly Earnings/,                 'Salario medio por hora', 'media'],
+  ['United States', /^Core CPI/,                                'IPC subyacente EE. UU.', 'alta'],
+  ['United States', /^CPI(\b| \()/,                             'IPC EE. UU.', 'alta'],
+  ['United States', /^Core PPI/,                                'IPP subyacente', 'media'],
+  ['United States', /^PPI(\b| \()/,                             'IPP', 'media'],
+  ['United States', /Core PCE Price Index/,                     'PCE subyacente', 'alta'],
+  ['United States', /^GDP(\b| \()/,                             'PIB EE. UU.', 'alta'],
+  ['United States', /Fed Interest Rate Decision/,               'Decisión de tipos de la Fed', 'alta'],
+  ['United States', /^Fed Chair .* Speaks|FOMC Press Conference/, 'Comparecencia del presidente de la Fed', 'alta'],
+  ['United States', /^Retail Sales(\b| \()/,                    'Ventas minoristas EE. UU.', 'media'],
+  ['United States', /^ISM Manufacturing PMI$/,                  'ISM manufacturero', 'alta'],
+  ['United States', /^ISM (Non-Manufacturing|Services) PMI$/,   'ISM de servicios', 'alta'],
+  ['United States', /^ADP Nonfarm Employment Change$/,          'Empleo privado ADP', 'media'],
+  ['United States', /^JOLTS Job Openings$/,                     'Ofertas de empleo JOLTS', 'media'],
+  ['United States', /^Initial Jobless Claims$/,                 'Peticiones de subsidio por desempleo', 'media'],
+  ['United States', /^CB Consumer Confidence/,                  'Confianza del consumidor', 'media'],
+  ['United States', /^Michigan Consumer Sentiment$/,            'Confianza y expectativas de inflación de Michigan', 'media'],
+  ['United States', /^Durable Goods Orders$/,                   'Pedidos de bienes duraderos', 'media'],
+  ['United States', /^Crude Oil Inventories$/,                  'Inventarios de crudo', 'media'],
+  ['Euro Zone',     /Deposit Facility Rate|ECB Interest Rate Decision/, 'Decisión de tipos del BCE', 'alta'],
+  ['Euro Zone',     /^ECB President .* Speaks/,                 'Comparecencia de la presidenta del BCE', 'media'],
+  ['Euro Zone',     /^Core CPI$/,                               'IPC subyacente zona euro', 'alta'],
+  ['Euro Zone',     /^CPI$/,                                    'IPC zona euro', 'alta'],
+  ['Euro Zone',     /^GDP(\b| \()/,                             'PIB zona euro', 'media'],
+  ['Euro Zone',     /^HCOB Eurozone Manufacturing PMI$/,        'PMI manufacturero zona euro', 'media'],
+  ['Euro Zone',     /^HCOB Eurozone Services PMI$/,             'PMI de servicios zona euro', 'media'],
+  ['Germany',       /^HCOB Germany Manufacturing PMI$/,         'PMI manufacturero Alemania', 'media'],
+  ['Germany',       /^HCOB Germany Services PMI$/,              'PMI de servicios Alemania', 'media'],
+  ['Spain',         /^HCOB Spain Manufacturing PMI$/,           'PMI manufacturero España', 'media'],
+  ['Spain',         /^HCOB Spain Services PMI$/,                'PMI de servicios España', 'media'],
+  ['Spain',         /^Spanish Unemployment Change$/,            'Paro registrado España', 'media'],
+  ['United Kingdom',/^BoE Interest Rate Decision$/,             'Banco de Inglaterra: tipos', 'alta'],
+  ['Australia',     /^RBA Interest Rate Decision$/,             'Banco de Australia: tipos', 'alta']
 ];
-const ES_EEUU = (r) => {
-  const c = String(r.country || r.countryCode || r.region || '').toLowerCase().trim();
-  return !c || /^(us|usa|u\.s\.|united states|estados unidos)$/.test(c);
-};
-/* Nasdaq da la hora en Nueva York; aquí se quiere en Madrid, y el desfase
-   cambia según la semana porque los cambios de hora no coinciden. */
-function etAMadrid(iso, hhmm){
+/* Nasdaq da la hora en Nueva York; aquí se quiere en Madrid. Puede cambiar de
+   día (lo de Australia de madrugada), así que se devuelve fecha y hora. */
+function etAMadridFecha(isoNY, hhmm){
   const m = String(hhmm || '').match(/(\d{1,2}):(\d{2})/);
-  if(!m) return '';
-  const comoUTC = new Date(`${iso}T${dosD(m[1])}:${m[2]}:00Z`);
-  if(isNaN(comoUTC)) return '';
+  if(!m) return null;
+  const comoUTC = new Date(`${isoNY}T${dosD(m[1])}:${m[2]}:00Z`);
+  if(isNaN(comoUTC)) return null;
   const enNY  = new Date(comoUTC.toLocaleString('en-US', {timeZone:'America/New_York'}));
   const enUTC = new Date(comoUTC.toLocaleString('en-US', {timeZone:'UTC'}));
-  const instante = new Date(comoUTC.getTime() + (enUTC - enNY));
-  return instante.toLocaleTimeString('es-ES', {timeZone:'Europe/Madrid', hour:'2-digit', minute:'2-digit'});
+  const t = new Date(comoUTC.getTime() + (enUTC - enNY));
+  const f = new Intl.DateTimeFormat('en-CA', {timeZone:'Europe/Madrid', year:'numeric', month:'2-digit', day:'2-digit'}).format(t);
+  return {iso: f, hora: t.toLocaleTimeString('es-ES', {timeZone:'Europe/Madrid', hour:'2-digit', minute:'2-digit'})};
 }
+/* Ojo: Nasdaq, con ?date=D, devuelve los eventos del día anterior (hora de Nueva
+   York). Por eso se pide el día siguiente, y se cubre del domingo al viernes de
+   Nueva York para no perder lo que en Madrid ya cae en lunes. */
+const macroSemanas = new Set();
 async function cargarMacroSemana(off){
-  const dias = semanaLV(off);
-  await Promise.allSettled(dias.map(async d => {
-    const iso = aISO(d);
-    if(macroApi[iso]) return;
-    try{
-      const j = await nasdaq('calendar/economicevents?date=' + iso);
-      const filas = (j && j.data && j.data.rows) || [];
-      const ev = [];
-      for(const r of filas){
-        if(!ES_EEUU(r)) continue;
-        const bruto = String(r.eventName || r.event || '').trim();
-        const match = TRES_ESTRELLAS.find(([re]) => re.test(bruto));
-        if(!match) continue;
-        ev.push({
-          hora: etAMadrid(iso, r.gmt || r.time || ''),
-          evento: match[1],
-          importancia: 'alta'
-        });
-      }
-      if(ev.length) macroApi[iso] = ev;
-    }catch(e){}
+  if(macroSemanas.has(off)) return;
+  macroSemanas.add(off);
+  const lunes = semanaLV(off)[0];
+  const consultas = Array.from({length:6}, (_, i) => { const d = new Date(lunes); d.setDate(d.getDate() + i); return d; });
+  const nuevos = {};
+  const res = await Promise.allSettled(consultas.map(async d => {
+    const q = aISO(d), ny = new Date(d); ny.setDate(ny.getDate() - 1);
+    const j = await nasdaq('calendar/economicevents?date=' + q);
+    ((j && j.data && j.data.rows) || []).forEach(r => {
+      const nombre = String(r.eventName || '').trim(), pais = String(r.country || '').trim();
+      const e = MACRO_LISTA.find(([c, re]) => c === pais && re.test(nombre)); if(!e) return;
+      const fh = etAMadridFecha(aISO(ny), r.gmt || r.time); if(!fh) return;
+      const dia = nuevos[fh.iso] = nuevos[fh.iso] || [];
+      if(!dia.some(x => x.evento === e[2])) dia.push({hora: fh.hora, evento: e[2], importancia: e[3]});
+    });
   }));
+  if(res.some(r => r.status === 'rejected')) macroSemanas.delete(off);
+  Object.assign(macroApi, nuevos);
   if(vista === 'macro') pintarMacro();
   pintarAgenda();
 }
-/* Lo que haya escrito a mano en el Sheet manda sobre lo que traiga la API */
+/* Lo del Sheet MACRO se suma (elecciones, lo que no trae Nasdaq) y, si es el
+   mismo evento, manda lo del Sheet */
 function macroDe(iso){
   const delSheet = macroSheet.filter(m => isoDe(m.FECHA) === iso)
     .map(m => ({hora:m.HORA, evento:m.EVENTO, importancia:(m.IMPORTANCIA||'').toLowerCase(), nota:m.NOTA}));
-  const lista = delSheet.length ? delSheet : (macroApi[iso] || []);
-  return [...lista].sort((a,b) => String(a.hora).localeCompare(String(b.hora)));
+  const api = (macroApi[iso] || []).filter(a => !delSheet.some(x => String(x.evento).toLowerCase() === a.evento.toLowerCase()));
+  return [...delSheet, ...api].sort((a,b) => String(a.hora).localeCompare(String(b.hora)));
 }
 
 /* ═══════════ Filas ═══════════ */
@@ -1442,7 +1455,13 @@ function porSesiones(res){
 }
 /* Cómo puede afectar cada dato a la cartera (lo que tiene: energía, materiales, tecnología, consumo) */
 const EFECTO_MACRO = [
-  [/nóminas|paro|salario/i, 'Empleo fuerte: menos bajadas de tipos, presiona a tecnología y crecimiento. Débil: miedo a recesión, castiga cíclicas y energía.'],
+  [/paro registrado españa/i, 'Mercado laboral español: poco efecto directo en tu cartera.'],
+  [/pmi .*(zona euro|alemania|españa)/i, 'Actividad en Europa: afecta a tus valores europeos y al euro.'],
+  [/bce/i, 'Mueve el euro y los valores europeos: tono suave los apoya, tono duro los frena.'],
+  [/ipc .*zona euro/i, 'Inflación europea: si sale alta, el BCE tarda más en bajar tipos y pesa sobre los valores europeos.'],
+  [/inglaterra/i, 'Mueve la libra y tus valores británicos.'],
+  [/australia/i, 'Mueve el dólar australiano y tus valores australianos.'],
+  [/empleo|nóminas|paro|salario|subsidio|jolts/i, 'Empleo fuerte: menos bajadas de tipos, presiona a tecnología y crecimiento. Débil: miedo a recesión, castiga cíclicas y energía.'],
   [/ipc|ipp|pce/i, 'Inflación alta: tipos altos más tiempo, castiga tecnología y crecimiento y apoya energía y materias primas. Baja: alivio para crecimiento.'],
   [/pib/i, 'Fuerte: bien para cíclicas, energía y materiales. Débil: mejor aguantan consumo básico y salud.'],
   [/fed/i, 'Mueve todo el mercado: tono suave impulsa crecimiento y pequeñas compañías; tono duro las castiga y sube el dólar.'],
@@ -2251,7 +2270,7 @@ function pintarMacro(){
         <div class="card-cab"${iso===hoy?' style="background:linear-gradient(90deg,rgba(247,184,60,.17),rgba(247,184,60,.04))"':''}>
           ${esc(DIAS[d.getDay()])} ${esc(fmtCorto(d))}${iso===hoy?'<span class="cnt" style="color:var(--pos);font-weight:700">HOY</span>':''}
         </div>
-        <div class="card-cuerpo">${mac.length ? mac.map(filaMacro).join('') : '<div class="vacio">Nada este día.</div>'}</div>
+        <div class="card-cuerpo">${mac.length ? mac.map(m => filaMacro(m, true)).join('') : '<div class="vacio">Nada este día.</div>'}</div>
       </div>`;
     }).join('') +
     (total === 0 ? '<div class="card"><div class="card-cuerpo"><div class="vacio">Sin eventos macro en esta semana.</div></div></div>' : '');
@@ -3042,7 +3061,7 @@ $('#btnSave').addEventListener('click', () => {
   try{ localStorage.setItem(LS_SCRIPT, scriptUrl); localStorage.setItem(LS_CLAVE, scriptClave); }catch(e){}
   leerTareasVivas();
   $('#modal').classList.remove('open');
-  semanasPedidas.clear(); resultados = {}; macroApi = {};
+  semanasPedidas.clear(); resultados = {}; macroApi = {}; macroSemanas.clear();
   cargarSemana(offCal); cargarMacroSemana(offMacro); cargarResultadosMios();
 });
 $('#btnTest').addEventListener('click', async () => {
@@ -3130,7 +3149,7 @@ $('#aCands').addEventListener('click', e => {
   $('#aCands').innerHTML = ''; aviso('',''); analizar(b.dataset.sym);
 });
 $('#btnRef').addEventListener('click', () => {
-  semanasPedidas.clear(); resultados = {}; macroApi = {}; misFechas = {}; misEventos = {}; simbolos = {};
+  semanasPedidas.clear(); resultados = {}; macroApi = {}; macroSemanas.clear(); misFechas = {}; misEventos = {}; simbolos = {};
   try{ localStorage.removeItem(LS_MIAS); }catch(e){}
   cargar();
 });
