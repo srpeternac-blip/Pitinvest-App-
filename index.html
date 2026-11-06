@@ -1360,7 +1360,9 @@ async function cargarMacroSemana(off){
   const nuevos = {};
   const res = await Promise.allSettled(consultas.map(async d => {
     const q = aISO(d), ny = new Date(d); ny.setDate(ny.getDate() - 1);
-    const j = await nasdaq('calendar/economicevents?date=' + q);
+    // Hasta tres intentos: si falla un día, se pierden sus datos (el viernes de empleo, por ejemplo)
+    let j = null;
+    for(let k = 0; k < 3 && !j; k++){ try{ j = await nasdaq('calendar/economicevents?date=' + q); }catch(e){ if(k === 2) throw e; await new Promise(r => setTimeout(r, 1500)); } }
     ((j && j.data && j.data.rows) || []).forEach(r => {
       const nombre = String(r.eventName || '').trim(), pais = String(r.country || '').trim();
       const e = MACRO_LISTA.find(([c, re]) => c === pais && re.test(nombre)); if(!e) return;
@@ -1369,8 +1371,8 @@ async function cargarMacroSemana(off){
       if(!dia.some(x => x.evento === e[2])) dia.push({hora: fh.hora, evento: e[2], importancia: e[3]});
     });
   }));
-  if(res.some(r => r.status === 'rejected')) macroSemanas.delete(off);
   Object.assign(macroApi, nuevos);
+  if(res.some(r => r.status === 'rejected')){ macroSemanas.delete(off); setTimeout(() => cargarMacroSemana(off), 30000); }
   if(vista === 'macro') pintarMacro();
   pintarAgenda();
 }
