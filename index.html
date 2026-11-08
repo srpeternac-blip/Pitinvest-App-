@@ -287,6 +287,7 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .tec-t th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue);text-align:left;padding:6px 6px 8px}
 .tec-t td{padding:9px 6px;border-top:1px solid rgba(43,42,71,.6);white-space:nowrap}
 .tec-t td:first-child{font-family:var(--sans,inherit);color:var(--media);font-size:13px}
+.tec-t td small{display:block;font-size:10px;opacity:.85;margin-top:1px}
 .tec-t .ok{color:var(--verde)} .tec-t .ko{color:var(--alarma)} .tec-t .nd{color:var(--tenue)}
 @media(max-width:1100px){.a-grid{grid-template-columns:minmax(0,1fr)}.a-grid > aside{position:static;margin-top:0}}
 .mc-fng{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:10px}
@@ -2971,13 +2972,13 @@ function rsiSerie(c, n = 14){
   return out;
 }
 function divergencia(c, r){
-  const k = 3, desde = Math.max(k, c.length - 60), bajos = [], altos = [];
+  const k = 2, desde = Math.max(k, c.length - 80), bajos = [], altos = [];
   for(let i = desde; i < c.length - k; i++){
     const v = c.slice(i-k, i+k+1);
     if(c[i] === Math.min(...v)) bajos.push(i);
     if(c[i] === Math.max(...v)) altos.push(i);
   }
-  const reciente = (i) => c.length - 1 - i <= 15;
+  const reciente = (i) => c.length - 1 - i <= 20;
   if(bajos.length >= 2){ const [a, b] = bajos.slice(-2); if(reciente(b) && c[b] < c[a] && r[b] != null && r[a] != null && r[b] > r[a]) return 'alcista'; }
   if(altos.length >= 2){ const [a, b] = altos.slice(-2); if(reciente(b) && c[b] > c[a] && r[b] != null && r[a] != null && r[b] < r[a]) return 'bajista'; }
   return null;
@@ -2994,8 +2995,8 @@ async function bloqueTecnico(t, id){
     const r = rsiSerie(c), rsi = r[r.length-1], div = divergencia(c, r), ult = c[c.length-1];
     const ma = c.length >= 200 ? c.slice(-200).reduce((a, b) => a + b, 0)/200 : null, dist = ma ? ult/ma - 1 : null;
     return `<tr><td>${n}</td>
-      <td class="${rsi < 30 ? 'ok' : rsi > 70 ? 'ko' : ''}">${rsi != null ? Math.round(rsi) : '—'}</td>
-      <td class="${div === 'alcista' ? 'ok' : div === 'bajista' ? 'ko' : 'nd'}">${div ? cap(div) : '—'}</td>
+      <td class="${rsi < 30 ? 'ok' : rsi > 70 ? 'ko' : ''}">${rsi != null ? Math.round(rsi) + `<small>${rsi < 30 ? 'Sobreventa' : rsi > 70 ? 'Sobrecompra' : 'Neutral'}</small>` : '—'}</td>
+      <td class="${div === 'alcista' ? 'ok' : div === 'bajista' ? 'ko' : 'nd'}">${div ? cap(div) : 'Ninguna'}</td>
       <td class="${dist == null ? 'nd' : dist >= 0 ? 'ok' : 'ko'}">${dist == null ? 'N/D' : (dist >= 0 ? 'Encima ' : 'Debajo ') + pctSig(dist)}</td></tr>`;
   }).join('');
   el.innerHTML = `<div class="pane tec"><h4 class="sec">Técnico</h4>
