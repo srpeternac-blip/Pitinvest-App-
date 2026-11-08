@@ -287,6 +287,13 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .tec-t th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue);text-align:left;padding:6px 6px 8px}
 .tec-t td{padding:9px 6px;border-top:1px solid rgba(43,42,71,.6);white-space:nowrap}
 .tec-t td:first-child{font-family:var(--sans,inherit);color:var(--media);font-size:13px}
+.tec-tabs{display:flex;gap:5px;margin:8px 0 6px}
+.tec-tabs button{flex:1;padding:5px 0;border-radius:7px;border:1px solid var(--borde);background:var(--panel);color:var(--media);font-size:12px}
+.tec-tabs button.on{background:rgba(247,184,60,.1);border-color:rgba(247,184,60,.5);color:var(--pos);font-weight:700}
+.tec-svg{width:100%;height:auto;display:block}
+.tec-ax{fill:var(--tenue);font-family:var(--mono);font-size:8px}
+.tec-ley{display:flex;gap:12px;justify-content:center;font-size:11px;color:var(--tenue);margin:4px 0 6px}
+.tec-ley i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
 .tec-t td small{display:block;font-size:10px;opacity:.85;margin-top:1px}
 .tec-t .ok{color:var(--verde)} .tec-t .ko{color:var(--alarma)} .tec-t .nd{color:var(--tenue)}
 @media(max-width:1100px){.a-grid{grid-template-columns:minmax(0,1fr)}.a-grid > aside{position:static;margin-top:0}}
@@ -3000,7 +3007,36 @@ async function bloqueTecnico(t, id){
       <td class="${dist == null ? 'nd' : dist >= 0 ? 'ok' : 'ko'}">${dist == null ? 'N/D' : (dist >= 0 ? 'Encima ' : 'Debajo ') + pctSig(dist)}</td></tr>`;
   }).join('');
   el.innerHTML = `<div class="pane tec"><h4 class="sec">Técnico</h4>
-    <table class="tec-t"><thead><tr><th></th><th>RSI</th><th>Diverg.</th><th>Media 200</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+    <table class="tec-t"><thead><tr><th></th><th>RSI</th><th>Diverg.</th><th>Media 200</th></tr></thead><tbody>${filas}</tbody></table>
+    <div class="tec-tabs">${marcos.map(([n], k) => `<button class="${k === 0 ? 'on' : ''}" data-tec="${k}">${n}</button>`).join('')}</div>
+    <div class="tec-g">${graficoTec(datos[0], 180)}</div></div>`;
+  const VISTA = [180, 156, 120];   // velas visibles: ~9 meses, 3 años, 10 años
+  el.querySelectorAll('[data-tec]').forEach(b => b.addEventListener('click', () => {
+    const k = +b.dataset.tec;
+    el.querySelectorAll('[data-tec]').forEach(x => x.classList.toggle('on', x === b));
+    el.querySelector('.tec-g').innerHTML = graficoTec(datos[k], VISTA[k]);
+  }));
+}
+/* Precio con su media de 200 y, debajo, el RSI con las bandas de 30 y 70 */
+function graficoTec(c, n){
+  if(!c || c.length < 20) return '<div class="vacio" style="padding:10px 0">Sin datos.</div>';
+  const r = rsiSerie(c), ma = c.map((_, i) => i >= 199 ? c.slice(i-199, i+1).reduce((a, b) => a + b, 0)/200 : null);
+  const ini = Math.max(0, c.length - n), P = c.slice(ini), M = ma.slice(ini), R = r.slice(ini);
+  const W = 320, H1 = 130, H2 = 60, gap = 8, X = (i) => 4 + i/(P.length - 1)*(W - 8);
+  const vals = P.concat(M.filter(v => v != null)), mn = Math.min(...vals), mx = Math.max(...vals), rg = (mx - mn) || 1;
+  const Y = (v) => 6 + (1 - (v - mn)/rg)*(H1 - 12), YR = (v) => H1 + gap + (1 - v/100)*H2;
+  const linea = (arr, y) => arr.map((v, i) => v == null ? null : X(i).toFixed(1) + ',' + y(v).toFixed(1)).filter(Boolean).join(' ');
+  const sube = P[P.length-1] >= P[0];
+  return `<svg viewBox="0 0 ${W} ${H1 + gap + H2}" class="tec-svg">
+    <polyline points="${linea(P, Y)}" fill="none" stroke="${sube ? '#4ade80' : '#ff5f4d'}" stroke-width="1.6"/>
+    ${M.some(v => v != null) ? `<polyline points="${linea(M, Y)}" fill="none" stroke="#f7b83c" stroke-width="1.3" stroke-dasharray="4 3"/>` : ''}
+    <rect x="0" y="${YR(70)}" width="${W}" height="${YR(30) - YR(70)}" fill="rgba(255,255,255,.04)"/>
+    <line x1="0" x2="${W}" y1="${YR(70)}" y2="${YR(70)}" stroke="rgba(255,95,77,.5)" stroke-dasharray="2 3"/>
+    <line x1="0" x2="${W}" y1="${YR(30)}" y2="${YR(30)}" stroke="rgba(74,222,128,.5)" stroke-dasharray="2 3"/>
+    <polyline points="${linea(R, YR)}" fill="none" stroke="#a78bfa" stroke-width="1.3"/>
+    <text x="${W-2}" y="${YR(70)-2}" text-anchor="end" class="tec-ax">70</text><text x="${W-2}" y="${YR(30)+9}" text-anchor="end" class="tec-ax">30</text>
+  </svg>
+  <div class="tec-ley"><span><i style="background:${sube ? '#4ade80' : '#ff5f4d'}"></i>Precio</span><span><i style="background:#f7b83c"></i>Media 200</span><span><i style="background:#a78bfa"></i>RSI</span></div>`;
 }
 /* Opciones: put/call, max pain, gamma, muros y volatilidad implícita (vencimiento más cercano) */
 const corto$ = (x) => x == null ? '—' : (Math.abs(x) >= 1e9 ? (x/1e9).toFixed(1) + 'B' : Math.abs(x) >= 1e6 ? (x/1e6).toFixed(1) + 'M' : Math.abs(x) >= 1e3 ? (x/1e3).toFixed(0) + 'K' : Math.round(x)) + '$';
