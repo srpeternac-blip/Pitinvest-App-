@@ -304,11 +304,21 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .fng-v.nd{color:var(--tenue);margin-top:20px}
 .fng-e{font-size:12px;font-weight:600}
 .fng-p{font-family:var(--mono);font-size:10.5px;color:var(--tenue);margin-top:2px}
-.mc-sub{display:flex;gap:6px;margin:-2px 0 10px}
-.mc-sub button{padding:5px 14px;border-radius:7px;border:1px solid var(--borde);background:transparent;color:var(--media);font-size:12.5px}
-.mc-sub button.on{background:var(--alto);color:var(--tinta);border-color:var(--tenue);font-weight:700}
-.mc-row.mc-f{grid-template-columns:68px 150px repeat(7,80px)}
+.mc-pbar{display:flex;background:var(--banda);border:1px solid var(--borde);border-radius:11px;padding:4px;gap:4px;margin-bottom:12px}
+.mc-pbar .mc-tab{flex:1;background:transparent;border:0;border-radius:8px;padding:9px 6px;font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--media);text-align:center}
+.mc-pbar .mc-tab:hover{color:var(--tinta)}
+.mc-pbar .mc-tab.on{background:var(--pos);color:#14131f}
+.mc-pbar .mc-tab.on span{color:#14131f;opacity:.7}
+.mc-sub{display:flex;border-bottom:1px solid var(--borde);margin:0 0 12px}
+.mc-sub button{flex:1;padding:8px 6px 9px;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;background:transparent;color:var(--tenue);font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.mc-sub button:hover{color:var(--media)}
+.mc-sub button.on{color:var(--tinta);border-bottom-color:var(--pos)}
+.mc-row.mc-f{grid-template-columns:68px 150px 66px 66px 70px 80px 78px 80px 80px 74px 78px}
 .mc-row.mc-t{grid-template-columns:68px 150px repeat(6,86px)}
+.mc-x .mc-head > .mc-xh{background:none;border:0;padding:0;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tenue);text-align:center;cursor:pointer;white-space:nowrap}
+.mc-x .mc-head > .mc-xh:nth-child(2){text-align:left}
+.mc-x .mc-head > .mc-xh.on,.mc-x .mc-head > .mc-xh:hover{color:var(--pos)}
+.mc-x .mc-sp svg{display:block;margin:0 auto}
 .mc-x .mc-row > span{font-family:var(--mono);font-size:12.5px;text-align:center;white-space:nowrap}
 .mc-x .mc-row > .mc-c-name{font-family:inherit;text-align:left;overflow:hidden;text-overflow:ellipsis;font-size:13.5px}
 .mc-x .mc-row > .mc-c-tick{color:var(--pos);font-weight:700}
@@ -2021,15 +2031,19 @@ function fngGauge(titulo, d){
 let mcVista = 'gen';
 try{ mcVista = localStorage.getItem('pitinvest_mc_vista') || 'gen'; }catch(e){}
 const mcCache = {fund:{}, tec:{}}, MC_TTL = {fund: 864e5, tec: 216e5}, mcCargandoX = {fund:false, tec:false};
-try{ mcCache.fund = JSON.parse(localStorage.getItem('pitinvest_mc_fund') || '{}'); mcCache.tec = JSON.parse(localStorage.getItem('pitinvest_mc_tec') || '{}'); }catch(e){}
+let mcXSort = {fund:{col:null, dir:'desc'}, tec:{col:null, dir:'desc'}};
+try{ mcCache.fund = JSON.parse(localStorage.getItem('pitinvest_mc_fund2') || '{}'); mcCache.tec = JSON.parse(localStorage.getItem('pitinvest_mc_tec') || '{}'); }catch(e){}
 const mcFresco = (tipo, t) => mcCache[tipo][t] && Date.now() - mcCache[tipo][t].ts < MC_TTL[tipo];
 async function fundDe(t){
   const [j, tsJ] = await Promise.all([
     api('/summary/' + encodeURIComponent(t) + '?modules=price,summaryDetail,defaultKeyStatistics,financialData,incomeStatementHistory,incomeStatementHistoryQuarterly,cashflowStatementHistory,cashflowStatementHistoryQuarterly'),
-    api('/timeseries/' + encodeURIComponent(t) + '?types=annualOperatingIncome,annualEBIT,annualFreeCashFlow,annualRepurchaseOfCapitalStock,annualCommonStockIssuance,annualInterestExpense,trailingInterestExpense,quarterlyInterestExpense,annualNetNonOperatingInterestIncomeExpense,annualInterestExpenseNonOperating,trailingFreeCashFlow,annualForwardPeRatio,annualPeRatio&years=10').catch(() => null)]);
+    api('/timeseries/' + encodeURIComponent(t) + '?types=annualTotalRevenue,annualOperatingIncome,annualEBIT,annualFreeCashFlow,annualRepurchaseOfCapitalStock,annualCommonStockIssuance,annualInterestExpense,trailingInterestExpense,quarterlyInterestExpense,annualNetNonOperatingInterestIncomeExpense,annualInterestExpenseNonOperating,trailingFreeCashFlow,annualForwardPeRatio,annualPeRatio&years=10').catch(() => null)]);
   const m = j && j.quoteSummary && j.quoteSummary.result && j.quoteSummary.result[0]; if(!m) return null;
   const antes = aCtx; prepararA(t, m, tsJ); const c = aCtx; aCtx = antes;   // no pisa el análisis abierto
-  return {perFwd: c.perFwd, med: mediana(c.perFwdHist || c.perHist), nd: c.ndEbitda, cob: c.cobertura, ventas: c.revYoY, bpa: c.epsYoY, div: c.divYield, rec: c.buyNetoPct};
+  const ev = rv((m.defaultKeyStatistics || {}).enterpriseValue);
+  return {perFwd: c.perFwd, med: mediana(c.perFwdHist || c.perHist), nd: c.ndEbitda,
+    rev: c.revA || (c.revQ.length ? c.revQ : null), ebit: c.ebitA || (c.ebitQ.length ? c.ebitQ : null),
+    evFcf: ev && c.fcfUlt > 0 ? ev/c.fcfUlt : null, evEbitda: c.evEbitda, div: c.divYield, rec: c.buyNetoPct};
 }
 async function tecDe(t){
   const ser = async (r, i) => { const j = await api('/chart/' + encodeURIComponent(t) + `?range=${r}&interval=${i}`);
@@ -2050,35 +2064,62 @@ async function cargarExtrasMC(tipo){
     try{ const d = await (tipo === 'fund' ? fundDe(t) : tecDe(t)); if(d) mcCache[tipo][t] = {ts: Date.now(), d}; }catch(e){}
     if(++n % 6 === 0 && vista === 'micartera' && mcVista === tipo) pintarMiCartera();
   });
-  try{ localStorage.setItem(tipo === 'fund' ? 'pitinvest_mc_fund' : 'pitinvest_mc_tec', JSON.stringify(mcCache[tipo])); }catch(e){}
+  try{ localStorage.setItem(tipo === 'fund' ? 'pitinvest_mc_fund2' : 'pitinvest_mc_tec', JSON.stringify(mcCache[tipo])); }catch(e){}
   mcCargandoX[tipo] = false;
   if(vista === 'micartera' && mcVista === tipo) pintarMiCartera();
 }
 const mcCelda = (txt, cls) => `<span class="${cls || ''}">${txt}</span>`;
+/* Variación del último dato contra el anterior: para ordenar Revenue y EBIT */
+const mcCrec = (a) => !a || a.length < 2 || !a[a.length-2] ? null : (a[a.length-1] - a[a.length-2]) / Math.abs(a[a.length-2]);
+function mcSpark(vals){
+  if(!vals || vals.length < 2) return mcCelda('—','nd');
+  const W = 64, H = 20, imp = tendencia(vals), mx = Math.max(...vals, 0), mn = Math.min(...vals, 0), rg = (mx - mn) || 1;
+  const line = vals.map((v, i) => ((i/(vals.length-1))*W).toFixed(1) + ',' + (H-2-((v-mn)/rg)*(H-4)).toFixed(1)).join(' ');
+  const col = imp === 'up' ? 'var(--verde)' : imp === 'down' ? 'var(--alarma)' : 'var(--pos)';
+  return `<span class="mc-sp"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><polygon points="0,${H} ${line} ${W},${H}" fill="${col}" opacity="0.18"/><polyline points="${line}" fill="none" stroke="${col}" stroke-width="1.7" stroke-linejoin="round"/></svg></span>`;
+}
+/* Cabecera que ordena y orden de la lista (los vacíos siempre al final) */
+function mcXCab(tipo, cols){
+  const o = mcXSort[tipo];
+  return cols.map(([k, l]) => `<button class="mc-xh ${o.col === k ? 'on' : ''}" data-mc-xsort="${tipo}|${k}">${l}${o.col === k ? (o.dir === 'desc' ? ' ▾' : ' ▴') : ''}</button>`).join('');
+}
+function mcXOrden(tipo, lista, valor){
+  const o = mcXSort[tipo]; if(!o.col) return lista;
+  const dir = o.dir === 'desc' ? -1 : 1;
+  return [...lista].sort((a, b) => { const va = valor(a, o.col), vb = valor(b, o.col);
+    if(va == null && vb == null) return 0; if(va == null) return 1; if(vb == null) return -1;
+    if(typeof va === 'string') return va.localeCompare(vb) * dir;
+    return (va - vb) * dir; });
+}
 function tablaFundMC(lista){
-  const fp = (x) => x == null ? mcCelda('—','nd') : mcCelda((x > 0 ? '+' : '') + (x*100).toFixed(1) + '%', x > 0 ? 'ok' : 'ko');
-  const filas = lista.map(p => { const e = mcCache.fund[p.t], d = e && e.d;
+  const mult = (x, cls) => x == null ? mcCelda('—','nd') : mcCelda(fmtNum(x,1) + 'x', cls || '');
+  const val = (p, k) => { if(k === 'tick') return p.t; if(k === 'name') return p.name;
+    const d = mcCache.fund[p.t] && mcCache.fund[p.t].d; if(!d) return null;
+    return k === 'rev' ? mcCrec(d.rev) : k === 'ebit' ? mcCrec(d.ebit) : d[k]; };
+  const filas = mcXOrden('fund', lista, val).map(p => { const e = mcCache.fund[p.t], d = e && e.d;
     const ini = `<span class="mc-c-tick">${esc(p.t)}</span><span class="mc-c-name">${esc(p.name)}</span>`;
-    if(!d) return `<div class="mc-row mc-f">${ini}<span class="nd" style="grid-column:span 7">${mcCargandoX.fund ? '<span class="spin"></span>' : '—'}</span></div>`;
-    const per = d.perFwd == null ? mcCelda('—','nd') : mcCelda(fmtNum(d.perFwd,1) + 'x' + (d.med ? `<small>med. ${fmtNum(d.med,1)}x</small>` : ''),
-      !d.med ? '' : d.perFwd <= d.med ? 'ok' : d.perFwd <= d.med*1.2 ? 'mid' : 'ko');
-    return `<div class="mc-row mc-f">${ini}${per}
+    if(!d) return `<div class="mc-row mc-f">${ini}<span class="nd" style="grid-column:span 9">${mcCargandoX.fund ? '<span class="spin"></span>' : '—'}</span></div>`;
+    const perCls = d.perFwd == null || !d.med ? '' : d.perFwd <= d.med ? 'ok' : d.perFwd <= d.med*1.2 ? 'mid' : 'ko';
+    return `<div class="mc-row mc-f">${ini}${mult(d.perFwd, perCls)}${mult(d.med)}${mult(d.evFcf)}${mult(d.evEbitda)}
       ${d.nd == null ? mcCelda('—','nd') : mcCelda(fmtNum(d.nd,2) + 'x', d.nd < 3 ? 'ok' : d.nd <= 4 ? 'mid' : 'ko')}
-      ${d.cob == null ? mcCelda('—','nd') : mcCelda(fmtNum(d.cob,1) + 'x', d.cob >= 6 ? 'ok' : d.cob >= 3 ? 'mid' : 'ko')}
-      ${fp(d.ventas)}${fp(d.bpa)}
+      ${mcSpark(d.rev)}${mcSpark(d.ebit)}
       ${d.div == null ? mcCelda('No paga','nd') : mcCelda((d.div*100).toFixed(1) + '%', 'ok')}
       ${d.rec == null ? mcCelda('—','nd') : mcCelda((d.rec > 0 ? '+' : '') + (d.rec*100).toFixed(1) + '%', d.rec > 0.001 ? 'ok' : d.rec < -0.001 ? 'ko' : '')}</div>`; }).join('');
-  return `<div class="card mc-tabla mc-x"><div class="mc-row mc-f mc-head"><span>Ticker</span><span>Nombre</span><span>PER fwd</span><span>DN/EBITDA</span><span>Cobertura</span><span>Ventas</span><span>BPA</span><span>Dividendo</span><span>Recompras</span></div>${filas}</div>`;
+  return `<div class="card mc-tabla mc-x"><div class="mc-row mc-f mc-head">${mcXCab('fund', [['tick','Ticker'],['name','Nombre'],['perFwd','PER fwd'],['med','Mediana'],['evFcf','EV/FCF'],['evEbitda','EV/EBITDA'],['nd','DN/EBITDA'],['rev','Revenue'],['ebit','EBIT'],['div','Dividendo'],['rec','Recompras']])}</div>${filas}</div>`;
 }
 function tablaTecMC(lista){
   const rsi = (x) => !x || x.rsi == null ? mcCelda('—','nd') : mcCelda(Math.round(x.rsi) + `<small>${x.rsi < 30 ? 'Sobreventa' : x.rsi > 70 ? 'Sobrecompra' : 'Neutral'}</small>`, x.rsi < 30 ? 'ko' : x.rsi > 70 ? 'ok' : '');
-  const med = (x) => !x || x.dist == null ? mcCelda('N/D','nd') : mcCelda((x.dist >= 0 ? 'Encima ' : 'Debajo ') + (x.dist > 0 ? '+' : '') + (x.dist*100).toFixed(1) + '%', x.dist >= 0 ? 'ok' : 'ko');
+  const med = (x) => !x || x.dist == null ? mcCelda('N/D','nd') : mcCelda((x.dist > 0 ? '+' : '') + (x.dist*100).toFixed(1) + '%', x.dist >= 0 ? 'ok' : 'ko');
   const div = (x) => !x || !x.div ? mcCelda('—','nd') : mcCelda(cap(x.div), x.div === 'alcista' ? 'ok' : 'ko');
-  const filas = lista.map(p => { const e = mcCache.tec[p.t], d = e && e.d;
+  const val = (p, k) => { if(k === 'tick') return p.t; if(k === 'name') return p.name;
+    const d = mcCache.tec[p.t] && mcCache.tec[p.t].d; if(!d) return null;
+    const [tf, campo] = k.split('_'), x = d[tf]; if(!x) return null;
+    return campo === 'div' ? (x.div === 'alcista' ? 1 : x.div === 'bajista' ? -1 : null) : x[campo]; };
+  const filas = mcXOrden('tec', lista, val).map(p => { const e = mcCache.tec[p.t], d = e && e.d;
     const ini = `<span class="mc-c-tick">${esc(p.t)}</span><span class="mc-c-name">${esc(p.name)}</span>`;
     if(!d) return `<div class="mc-row mc-t">${ini}<span class="nd" style="grid-column:span 6">${mcCargandoX.tec ? '<span class="spin"></span>' : '—'}</span></div>`;
     return `<div class="mc-row mc-t">${ini}${rsi(d.d)}${rsi(d.w)}${rsi(d.m)}${med(d.d)}${med(d.w)}${div(d.d)}</div>`; }).join('');
-  return `<div class="card mc-tabla mc-x"><div class="mc-row mc-t mc-head"><span>Ticker</span><span>Nombre</span><span>RSI diario</span><span>RSI semanal</span><span>RSI mensual</span><span>Media 200 D</span><span>Media 200 S</span><span>Diverg. D</span></div>${filas}</div>`;
+  return `<div class="card mc-tabla mc-x"><div class="mc-row mc-t mc-head">${mcXCab('tec', [['tick','Ticker'],['name','Nombre'],['d_rsi','RSI diario'],['w_rsi','RSI semanal'],['m_rsi','RSI mensual'],['d_dist','Media 200 D'],['w_dist','Media 200 S'],['d_div','Diverg. D']])}</div>${filas}</div>`;
 }
 function pintarMiCartera(){
   const el = $('#micartera'); if(!el) return;
@@ -2097,7 +2138,7 @@ function pintarMiCartera(){
   const presentes = MC_TABS.filter(t => mcPos.some(p => p.port === t));
   if(mcPort !== 'ALL' && !presentes.includes(mcPort)) mcPort = 'ALL';
   const n = (t) => mcPos.filter(p => p.port === t).length;
-  const pestanas = `<div class="mc-tabs"><button class="mc-tab ${mcPort === 'ALL' ? 'on' : ''}" data-mc-port="ALL">TODAS<span>${mcPos.length}</span></button>` +
+  const pestanas = `<div class="mc-pbar"><button class="mc-tab ${mcPort === 'ALL' ? 'on' : ''}" data-mc-port="ALL">TODAS<span>${mcPos.length}</span></button>` +
     presentes.map(t => `<button class="mc-tab ${mcPort === t ? 'on' : ''}" data-mc-port="${t}">${t}<span>${n(t)}</span></button>`).join('') + '</div>';
 
   let lista = mcPort === 'ALL' ? mcPos : mcPos.filter(p => p.port === mcPort);
@@ -2164,7 +2205,7 @@ function pintarMiCartera(){
     }).join('') : '<div class="vacio">Sin movimientos.</div>'}</div></div>`;
 
   const ladoFng = `<div class="card mc-side"><div class="card-cab">Fear &amp; Greed</div><div class="card-cuerpo mc-fng">${fngGauge('Bolsa', fng && fng.bolsa)}${fngGauge('Cripto', fng && fng.cripto)}</div></div>`;
-  const sub = `<div class="mc-sub">${[['gen','General'],['fund','Fundamental'],['tec','Técnico']].map(([k, l]) => `<button class="${mcVista === k ? 'on' : ''}" data-mc-vista="${k}">${l}</button>`).join('')}</div>`;
+  const sub = `<div class="mc-sub">${[['gen','GENERAL'],['fund','FUNDAMENTAL'],['tec','TÉCNICO']].map(([k, l]) => `<button class="${mcVista === k ? 'on' : ''}" data-mc-vista="${k}">${l}</button>`).join('')}</div>`;
   const cuerpo = mcVista === 'fund' ? tablaFundMC(lista) : mcVista === 'tec' ? tablaTecMC(lista) : tabla;
   el.innerHTML = cab + mercado + `<div class="mc-grid"><div>${pestanas}${sub}${cuerpo}
     </div>
@@ -2175,6 +2216,9 @@ $('#micartera').addEventListener('click', e => {
   if(t('[data-mc-ref]')){ mcOk = false; mcPrimasTs = 0; cargarMiCartera(true); }
   else if((b = t('[data-mc-vista]'))){ mcVista = b.dataset.mcVista; try{ localStorage.setItem('pitinvest_mc_vista', mcVista); }catch(x){}
     pintarMiCartera(); if(mcVista !== 'gen') cargarExtrasMC(mcVista); }
+  else if((b = t('[data-mc-xsort]'))){ const [tipo, c] = b.dataset.mcXsort.split('|'), o = mcXSort[tipo];
+    if(o.col === c) o.dir = o.dir === 'desc' ? 'asc' : 'desc'; else { o.col = c; o.dir = (c === 'name' || c === 'tick') ? 'asc' : 'desc'; }
+    pintarMiCartera(); }
   else if((b = t('[data-mc-port]'))){ mcPort = b.dataset.mcPort; try{ localStorage.setItem('pitinvest_mc_port', mcPort); }catch(x){} pintarMiCartera(); }
   else if((b = t('[data-mc-sort]'))){ const c = b.dataset.mcSort;
     if(mcSort.col === c) mcSort.dir = mcSort.dir === 'desc' ? 'asc' : 'desc'; else mcSort = {col:c, dir:(c === 'name' || c === 'tick') ? 'asc' : 'desc'};
