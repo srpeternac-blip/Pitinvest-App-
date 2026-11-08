@@ -1968,7 +1968,7 @@ function mcFichaDe(p){
   return fichas.find(f => String(f.SIMBOLO_GF || '').toUpperCase() === o) || fichas.find(f => String(f.TICKER || '').toUpperCase() === b);
 }
 /* Fear & Greed: cripto directo de alternative.me; bolsa (CNN) por su worker, que CNN no deja leer desde el navegador */
-const FNG_URL = '';
+const FNG_URL = 'https://fear-greed.srpeternac.workers.dev/';
 let fng = null, fngTs = 0;
 async function cargarFng(){
   if(fng && Date.now() - fngTs < 15*60000) return;
