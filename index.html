@@ -279,6 +279,23 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .rd-bmz i{position:absolute;left:18%;right:18%;border-radius:3px}
 .rd-bm0{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.18)}
 @media(max-width:700px){.rd-g2{grid-template-columns:1fr}.rd-per{grid-template-columns:repeat(2,1fr)}.rd-donut{flex-direction:column;align-items:stretch}.rd-donut svg{align-self:center}}
+/* Técnico */
+.a-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start}
+.a-grid > aside{position:sticky;top:80px;margin-top:16px}
+#pTec .pane{border-radius:14px;margin-bottom:12px}
+.tec-t{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;margin:4px 0 6px}
+.tec-t th{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue);text-align:left;padding:6px 6px 8px}
+.tec-t td{padding:9px 6px;border-top:1px solid rgba(43,42,71,.6);white-space:nowrap}
+.tec-t td:first-child{font-family:var(--sans,inherit);color:var(--media);font-size:13px}
+.tec-t .ok{color:var(--verde)} .tec-t .ko{color:var(--alarma)} .tec-t .nd{color:var(--tenue)}
+@media(max-width:1100px){.a-grid{grid-template-columns:minmax(0,1fr)}.a-grid > aside{position:static;margin-top:0}}
+.mc-fng{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:10px}
+.fng{display:flex;flex-direction:column;align-items:center;text-align:center}
+.fng-t{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tenue);margin-bottom:2px}
+.fng-v{font-family:var(--mono);font-size:22px;font-weight:700;margin-top:-6px}
+.fng-v.nd{color:var(--tenue);margin-top:20px}
+.fng-e{font-size:12px;font-weight:600}
+.fng-p{font-family:var(--mono);font-size:10.5px;color:var(--tenue);margin-top:2px}
 .scr-h{display:flex;align-items:flex-end;gap:16px;margin-bottom:20px;flex-wrap:wrap}
 .wknav{display:flex;align-items:center;gap:6px;margin-left:auto}
 .wkb{border:1px solid var(--borde);background:var(--panel);border-radius:9px;color:var(--media);padding:8px 13px;font-size:14px}
@@ -702,7 +719,7 @@ h4.sec:first-child{margin-top:0}
     </section>
 
     <section class="view" id="view-analisis">
-      <div class="wrap">
+      <div class="wrap" style="max-width:1260px">
         <div class="espectro"></div>
         <div class="scr-h"><div><h1>Análisis</h1></div></div>
         <div class="search" style="max-width:560px">
@@ -1821,6 +1838,7 @@ async function mcPool(items, n, fn){ let i = 0;
 
 async function cargarMiCartera(forzar){
   if(mcCargando) return;
+  cargarFng();
   if(mcOk && !forzar){ pintarMiCartera(); return; }
   if(!workerUrl){ mcError = 'SIN_WORKER'; pintarMiCartera(); return; }
   mcCargando = true; mcError = ''; pintarMiCartera();
@@ -1949,6 +1967,32 @@ function mcFichaDe(p){
   const b = mcBase(p.t), o = String(p.orig || '').toUpperCase();
   return fichas.find(f => String(f.SIMBOLO_GF || '').toUpperCase() === o) || fichas.find(f => String(f.TICKER || '').toUpperCase() === b);
 }
+/* Fear & Greed: cripto directo de alternative.me; bolsa (CNN) por su worker, que CNN no deja leer desde el navegador */
+const FNG_URL = '';
+let fng = null, fngTs = 0;
+async function cargarFng(){
+  if(fng && Date.now() - fngTs < 15*60000) return;
+  fngTs = Date.now(); const o = {};
+  try{ const j = await (await fetch('https://api.alternative.me/fng/?limit=2', {signal: AbortSignal.timeout(10000)})).json();
+    o.cripto = {valor: +j.data[0].value, estado: j.data[0].value_classification, previo: j.data[1] ? +j.data[1].value : null}; }catch(e){}
+  if(FNG_URL){ try{ const j = await (await fetch(FNG_URL, {signal: AbortSignal.timeout(10000)})).json();
+    if(j.bolsa) o.bolsa = j.bolsa; if(!o.cripto && j.cripto) o.cripto = j.cripto; }catch(e){} }
+  fng = o; if(vista === 'micartera') pintarMiCartera();
+}
+const FNG_ES = {'extreme fear':'Miedo extremo', 'fear':'Miedo', 'neutral':'Neutral', 'greed':'Codicia', 'extreme greed':'Codicia extrema'};
+const fngColor = (v) => v < 25 ? '#ff5f4d' : v < 45 ? '#ff9f45' : v <= 55 ? '#a9a7c4' : v < 75 ? '#9be3b4' : '#4ade80';
+function fngGauge(titulo, d){
+  if(!d || d.valor == null || isNaN(d.valor)) return `<div class="fng"><div class="fng-t">${titulo}</div><div class="fng-v nd">—</div></div>`;
+  const cx = 60, cy = 56, R = 46, arco = (a0, a1, col) => { const p = (a) => [cx + R*Math.cos(Math.PI*(1-a)), cy - R*Math.sin(Math.PI*(1-a))].map(n => n.toFixed(1)).join(' ');
+    return `<path d="M${p(a0)} A${R} ${R} 0 0 1 ${p(a1)}" stroke="${col}" stroke-width="9" fill="none" opacity=".85"/>`; };
+  const tramos = [[0,.25,'#ff5f4d'],[.25,.45,'#ff9f45'],[.45,.55,'#75739a'],[.55,.75,'#9be3b4'],[.75,1,'#4ade80']].map(([a,b,c]) => arco(a+.006, b-.006, c)).join('');
+  const ang = Math.PI*(1 - d.valor/100), nx = cx + (R-14)*Math.cos(ang), ny = cy - (R-14)*Math.sin(ang);
+  const est = FNG_ES[String(d.estado || '').toLowerCase()] || d.estado || '';
+  return `<div class="fng"><div class="fng-t">${titulo}</div>
+    <svg viewBox="0 0 120 64" width="120" height="64">${tramos}<line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="#f2f1f8" stroke-width="2.5" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="4" fill="#f2f1f8"/></svg>
+    <div class="fng-v" style="color:${fngColor(d.valor)}">${Math.round(d.valor)}</div><div class="fng-e" style="color:${fngColor(d.valor)}">${esc(est)}</div>
+    ${d.previo != null ? `<div class="fng-p">Ayer ${Math.round(d.previo)}</div>` : ''}</div>`;
+}
 function pintarMiCartera(){
   const el = $('#micartera'); if(!el) return;
   const pctTxt = (x, d = 1) => x == null ? '—' : `<span class="${x >= 0 ? 'pos' : 'neg'}">${(x > 0 ? '+' : '') + (x*100).toFixed(d)}%</span>`;
@@ -2032,9 +2076,10 @@ function pintarMiCartera(){
       return `<div class="mc-li"><b>${esc(t)}</b> <span class="${x.venta ? 'neg' : 'pos'}">${x.venta ? 'venta' : 'compra'} ${esc(x.vTxt)}</span></div>`;
     }).join('') : '<div class="vacio">Sin movimientos.</div>'}</div></div>`;
 
+  const ladoFng = `<div class="card mc-side"><div class="card-cab">Fear &amp; Greed</div><div class="card-cuerpo mc-fng">${fngGauge('Bolsa', fng && fng.bolsa)}${fngGauge('Cripto', fng && fng.cripto)}</div></div>`;
   el.innerHTML = cab + mercado + `<div class="mc-grid"><div>${pestanas}${tabla}
     </div>
-    <aside>${ladoSec}${ladoRes}${ladoIns}</aside></div>`;
+    <aside>${ladoFng}${ladoSec}${ladoRes}${ladoIns}</aside></div>`;
 }
 $('#micartera').addEventListener('click', e => {
   const t = (s) => e.target.closest(s); let b;
@@ -2915,6 +2960,47 @@ function prepararA(t, m, tsJ){
     insiders: ((m.insiderTransactions && m.insiderTransactions.transactions) || []).map(x => ({acc: rv(x.shares), valor: rv(x.value), fecha: rv(x.startDate), quien: x.filerName || '', cargo: x.filerRelation || '', txt: (x.transactionText || '').toLowerCase()})),
   };
 }
+/* Técnico: RSI(14), divergencias y media de 200, en diario, semanal y mensual */
+function rsiSerie(c, n = 14){
+  const out = new Array(c.length).fill(null); if(c.length <= n) return out;
+  let g = 0, p = 0;
+  for(let i = 1; i <= n; i++){ const d = c[i] - c[i-1]; if(d > 0) g += d; else p -= d; }
+  g /= n; p /= n; out[n] = p === 0 ? 100 : 100 - 100/(1 + g/p);
+  for(let i = n + 1; i < c.length; i++){ const d = c[i] - c[i-1];
+    g = (g*(n-1) + Math.max(d, 0))/n; p = (p*(n-1) + Math.max(-d, 0))/n; out[i] = p === 0 ? 100 : 100 - 100/(1 + g/p); }
+  return out;
+}
+function divergencia(c, r){
+  const k = 3, desde = Math.max(k, c.length - 60), bajos = [], altos = [];
+  for(let i = desde; i < c.length - k; i++){
+    const v = c.slice(i-k, i+k+1);
+    if(c[i] === Math.min(...v)) bajos.push(i);
+    if(c[i] === Math.max(...v)) altos.push(i);
+  }
+  const reciente = (i) => c.length - 1 - i <= 15;
+  if(bajos.length >= 2){ const [a, b] = bajos.slice(-2); if(reciente(b) && c[b] < c[a] && r[b] != null && r[a] != null && r[b] > r[a]) return 'alcista'; }
+  if(altos.length >= 2){ const [a, b] = altos.slice(-2); if(reciente(b) && c[b] > c[a] && r[b] != null && r[a] != null && r[b] < r[a]) return 'bajista'; }
+  return null;
+}
+async function bloqueTecnico(t, id){
+  const el = document.getElementById(id); if(!el) return;
+  el.innerHTML = '<div class="pane tec"><h4 class="sec">Técnico</h4><div style="padding:10px 0"><span class="spin"></span></div></div>';
+  const marcos = [['Diario','2y','1d'], ['Semanal','10y','1wk'], ['Mensual','max','1mo']];
+  const datos = await Promise.all(marcos.map(([, r, i]) => api('/chart/' + encodeURIComponent(t) + `?range=${r}&interval=${i}`)
+    .then(j => ((j && j.chart && j.chart.result && j.chart.result[0] && j.chart.result[0].indicators.quote[0].close) || []).filter(v => v != null)).catch(() => [])));
+  if(!document.body.contains(el)) return;
+  const filas = marcos.map(([n], k) => {
+    const c = datos[k]; if(c.length < 20) return `<tr><td>${n}</td><td colspan="3" class="nd">N/D</td></tr>`;
+    const r = rsiSerie(c), rsi = r[r.length-1], div = divergencia(c, r), ult = c[c.length-1];
+    const ma = c.length >= 200 ? c.slice(-200).reduce((a, b) => a + b, 0)/200 : null, dist = ma ? ult/ma - 1 : null;
+    return `<tr><td>${n}</td>
+      <td class="${rsi < 30 ? 'ok' : rsi > 70 ? 'ko' : ''}">${rsi != null ? Math.round(rsi) : '—'}</td>
+      <td class="${div === 'alcista' ? 'ok' : div === 'bajista' ? 'ko' : 'nd'}">${div ? cap(div) : '—'}</td>
+      <td class="${dist == null ? 'nd' : dist >= 0 ? 'ok' : 'ko'}">${dist == null ? 'N/D' : (dist >= 0 ? 'Encima ' : 'Debajo ') + pctSig(dist)}</td></tr>`;
+  }).join('');
+  el.innerHTML = `<div class="pane tec"><h4 class="sec">Técnico</h4>
+    <table class="tec-t"><thead><tr><th></th><th>RSI</th><th>Diverg.</th><th>Media 200</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+}
 /* Opciones: put/call, max pain, gamma, muros y volatilidad implícita (vencimiento más cercano) */
 const corto$ = (x) => x == null ? '—' : (Math.abs(x) >= 1e9 ? (x/1e9).toFixed(1) + 'B' : Math.abs(x) >= 1e6 ? (x/1e6).toFixed(1) + 'M' : Math.abs(x) >= 1e3 ? (x/1e3).toFixed(0) + 'K' : Math.round(x)) + '$';
 async function bloqueOpciones(t, precio){
@@ -3037,7 +3123,8 @@ function renderA(){
       <div class="desc"></div>
     </div>`;
 
-  $(AOUT).innerHTML = cabecera + `
+  const tecId = enPanel() ? 'pTec' : 'aTec';
+  $(AOUT).innerHTML = cabecera + (enPanel() ? '<div id="pTec"></div>' : '<div class="a-grid"><div>') + `
     ${sinDatos ? '<div class="err">Este listado apenas publica fundamentales: suele ser una cotización secundaria. Busca el listado principal.</div>' : ''}
     <div class="pane" style="border-radius:14px;margin-top:${enPanel() ? '0' : '16px'}">
       <h4 class="sec">Gana dinero y crece</h4>${filas.slice(0,3).join('')}
@@ -3045,8 +3132,9 @@ function renderA(){
       <h4 class="sec">Deuda</h4>${filas.slice(6,nDeuda).join('')}
       <h4 class="sec">Retribución al accionista</h4>${filas.slice(nDeuda).join('')}
       ${enPanel() ? '' : extrasAnalisis(c)}
-    </div>`;
+    </div>` + (enPanel() ? '' : '</div><aside id="aTec"></aside></div>');
   if(!enPanel()) bloqueOpciones(t, c.precio);
+  bloqueTecnico(t, tecId);
   const elDesc = $(AOUT).querySelector('.desc');
   if(elDesc) descES(elDesc, c.resumen);
   if(!enPanel()) $(AOUT).scrollIntoView({behavior:'smooth', block:'start'});
