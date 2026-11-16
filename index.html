@@ -1834,8 +1834,36 @@ const MC_IND_ES = {'Software—Infrastructure':'Software infraestructura','Softw
   'Gambling':'Juego','Leisure':'Ocio','REIT—Specialty':'REIT especializado','REIT—Industrial':'REIT industrial','Real Estate Services':'Inmobiliario',
   'Conglomerates':'Conglomerados','Shell Companies':'Sociedades instrumentales','Waste Management':'Gestión de residuos','Security & Protection Services':'Seguridad',
   'Scientific & Technical Instruments':'Instrumentación','Education & Training Services':'Educación','Advertising Agencies':'Publicidad'};
-const mcSubDe = (p) => { const f = mcFichaDe(p), s = f && String(f.SUBSECTOR || '').trim();
-  if(s) return s.toUpperCase(); const i = mcInd[p.t] && mcInd[p.t].i; return i ? (MC_IND_ES[i] || i).toUpperCase() : null; };
+/* Categorías amplias: el subsector de la ficha (o la industria de Yahoo) se agrupa por palabras. Gana la primera que encaje. */
+const MC_GRUPOS = [
+  ['ETF', /\betf\b/],
+  ['IA Y CENTROS DE DATOS', /centros? de datos|data cent|cripto|bitcoin|blockchain/],
+  ['SEMICONDUCTORES', /semicond|chip/],
+  ['SOFTWARE', /software|ciberseg|security software/],
+  ['INTERNET Y SERVICIOS TI', /internet|servicios it|servicios ti|consultor|publicidad|advertis|comercio electr|e-?commerce|viajes online|travel serv|information technology/],
+  ['ESPACIO Y DEFENSA', /aeroesp|aerospace|defens|sat[ée]lit|dron/],
+  ['PAGOS Y BANCA', /pago|banca|bank|cr[ée]dit|financ|gesti[óo]n de activos|asset manag|capital market|exchange|seguros$|insurance/],
+  ['SEGUROS DE SALUD', /seguros de salud|health(care)? plan/],
+  ['FARMA Y BIOTECH', /farma|pharm|drug|biotec|sanidad animal|telemedic/],
+  ['MATERIAL MÉDICO', /m[ée]dic|[óo]ptica|diagn[óo]st|instrument/],
+  ['PETRÓLEO Y GAS', /petr[óo]le|oil|gas/],
+  ['CARBÓN', /carb[óo]n|coal/],
+  ['NUCLEAR Y URANIO', /nuclear|uran/],
+  ['MINERÍA Y METALES', /miner|mining|oro|gold|plata|silver|cobre|copper|litio|lithium|metal|acero|steel|alumin/],
+  ['QUÍMICAS', /qu[íi]mic|chemical/],
+  ['ELÉCTRICAS Y RENOVABLES', /^el[ée]ctricas|utilit|renovab|renewab|solar/],
+  ['ALIMENTACIÓN Y BEBIDAS', /aliment|bebida|beverage|food|restaura|supermerc|grocery|tabac|tobacco|brewer/],
+  ['LUJO, MODA Y RETAIL', /lujo|luxury|textil|apparel|calzado|footwear|retail|moda|tienda/],
+  ['OCIO Y ENTRETENIMIENTO', /videojueg|gaming|juguet|toy|entreten|entertain|ocio|leisure|hotel|lodging/],
+  ['TELECOS Y MEDIOS', /telecom|cable|medios|media/],
+  ['TRANSPORTE', /transport|log[íi]stic|freight|trucking|railroad|ferrocarril|shipping|aerol[íi]nea|airline/],
+  ['AUTOMOCIÓN Y BATERÍAS', /autom|auto |auto$|recambio|bater/],
+  ['INDUSTRIA Y SERVICIOS', /servicio|maquinar|machinery|concesion|climatiz|instalacion|subasta|distribuci|construc|equipment|industrial|residuos|waste/],
+];
+const mcSubDe = (p) => { const f = mcFichaDe(p); let s = f && String(f.SUBSECTOR || '').trim();
+  if(!s){ const i = mcInd[p.t] && mcInd[p.t].i; s = i ? (MC_IND_ES[i] || i) : ''; }
+  if(!s) return null; const l = s.toLowerCase(), g = MC_GRUPOS.find(([, re]) => re.test(l));
+  return g ? g[0] : s.toUpperCase(); };
 async function mcCargarInd(){
   const faltan = [...new Set(mcPos.filter(p => { const f = mcFichaDe(p); return !(f && String(f.SUBSECTOR || '').trim()); }).map(p => p.t))]
     .filter(t => !mcInd[t] || Date.now() - mcInd[t].ts > 30*86400000);
