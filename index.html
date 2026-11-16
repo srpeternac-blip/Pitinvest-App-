@@ -222,6 +222,8 @@ a.mc-b,button.mc-b{opacity:1;font-weight:700;cursor:pointer}
 .mc-sec-bar i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--pos),var(--naranja))}
 .mc-sec-mini{display:flex;gap:10px;font-family:var(--mono);font-size:11.5px;padding:2px 0 2px 14px;color:var(--media)}
 .mc-sec-mini b{color:var(--pos);width:64px;font-weight:600}
+.mc-sub-sec{font-family:var(--mono);font-size:9.5px;color:var(--tenue);margin-left:auto;margin-right:10px;letter-spacing:.06em}
+.mc-sec-top .mc-sub-sec{color:var(--tenue)}
 .mc-side-sub{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--pos);margin:10px 0 5px}
 .mc-side-sub:first-child{margin-top:0}
 .mc-li{font-size:13px;padding:3px 0;line-height:1.45}
@@ -1808,6 +1810,43 @@ const MC_XMAP = {lon:'.L',lse:'.L',epa:'.PA',ams:'.AS',bru:'.BR',asx:'.AX',tse:'
 const MC_MKT = [{n:'S&P 500',s:'ES=F'},{n:'Nasdaq',s:'NQ=F'},{n:'Russell',s:'RTY=F'},{n:'VIX',s:'^VIX'},{n:'Oro',s:'GC=F'},{n:'WTI',s:'CL=F'},{n:'Bitcoin',s:'BTC-USD'}];
 let mcRaw = {}, mcPos = [], mcTot = {}, mcOk = false, mcCargando = false, mcError = '';
 let mcPort = 'ALL', mcSort = {col:'peso', dir:'desc'}, mcSecSort = {col:'peso', dir:'desc'}, mcSecOpen = {};
+/* Subsectores: el SUBSECTOR de la ficha; si está vacío, la industria de Yahoo (guardada 30 días) */
+let mcSubSort = {col:'peso', dir:'desc'}, mcSubOpen = {}, mcInd = {};
+try{ mcInd = JSON.parse(localStorage.getItem('pitinvest_ind') || '{}'); }catch(e){}
+const MC_IND_ES = {'Software—Infrastructure':'Software infraestructura','Software—Application':'Software aplicaciones','Semiconductors':'Semiconductores',
+  'Semiconductor Equipment & Materials':'Equipos semiconductores','Aerospace & Defense':'Aeroespacial y defensa','Gold':'Mineras de oro','Silver':'Mineras de plata',
+  'Other Precious Metals & Mining':'Metales preciosos','Other Industrial Metals & Mining':'Minería industrial','Copper':'Cobre','Uranium':'Uranio',
+  'Oil & Gas Integrated':'Petróleo integrado','Oil & Gas E&P':'Petróleo exploración','Oil & Gas Midstream':'Petróleo transporte','Oil & Gas Refining & Marketing':'Refino',
+  'Oil & Gas Equipment & Services':'Servicios petroleros','Thermal Coal':'Carbón térmico','Coking Coal':'Carbón metalúrgico','Utilities—Regulated Electric':'Eléctricas reguladas',
+  'Utilities—Renewable':'Renovables','Utilities—Independent Power Producers':'Productores de energía','Solar':'Solar','Biotechnology':'Biotecnología',
+  'Drug Manufacturers—General':'Farmacéuticas','Drug Manufacturers—Specialty & Generic':'Farmacéuticas genéricas','Medical Devices':'Dispositivos médicos',
+  'Diagnostics & Research':'Diagnóstico','Healthcare Plans':'Seguros de salud','Banks—Diversified':'Banca','Banks—Regional':'Banca regional',
+  'Asset Management':'Gestoras','Capital Markets':'Mercados de capitales','Insurance—Diversified':'Seguros','Credit Services':'Servicios de crédito',
+  'Financial Data & Stock Exchanges':'Bolsas y datos','Internet Content & Information':'Internet','Internet Retail':'Comercio online',
+  'Electronic Gaming & Multimedia':'Videojuegos','Entertainment':'Entretenimiento','Telecom Services':'Telecomunicaciones','Communication Equipment':'Equipos de comunicación',
+  'Computer Hardware':'Hardware','Consumer Electronics':'Electrónica de consumo','Electronic Components':'Componentes electrónicos','Information Technology Services':'Servicios TI',
+  'Auto Manufacturers':'Automóviles','Auto Parts':'Recambios auto','Specialty Chemicals':'Química especializada','Chemicals':'Química','Agricultural Inputs':'Agroquímica',
+  'Steel':'Acero','Aluminum':'Aluminio','Lumber & Wood Production':'Madera','Building Materials':'Materiales construcción','Engineering & Construction':'Ingeniería y construcción',
+  'Specialty Industrial Machinery':'Maquinaria industrial','Electrical Equipment & Parts':'Equipo eléctrico','Railroads':'Ferrocarril','Airlines':'Aerolíneas',
+  'Marine Shipping':'Transporte marítimo','Integrated Freight & Logistics':'Logística','Trucking':'Transporte por carretera','Packaged Foods':'Alimentación',
+  'Beverages—Non-Alcoholic':'Bebidas','Beverages—Brewers':'Cerveceras','Tobacco':'Tabaco','Household & Personal Products':'Higiene y hogar','Discount Stores':'Distribución',
+  'Grocery Stores':'Supermercados','Restaurants':'Restauración','Apparel Retail':'Moda','Luxury Goods':'Lujo','Travel Services':'Viajes','Lodging':'Hoteles',
+  'Gambling':'Juego','Leisure':'Ocio','REIT—Specialty':'REIT especializado','REIT—Industrial':'REIT industrial','Real Estate Services':'Inmobiliario',
+  'Conglomerates':'Conglomerados','Shell Companies':'Sociedades instrumentales','Waste Management':'Gestión de residuos','Security & Protection Services':'Seguridad',
+  'Scientific & Technical Instruments':'Instrumentación','Education & Training Services':'Educación','Advertising Agencies':'Publicidad'};
+const mcSubDe = (p) => { const f = mcFichaDe(p), s = f && String(f.SUBSECTOR || '').trim();
+  if(s) return s.toUpperCase(); const i = mcInd[p.t] && mcInd[p.t].i; return i ? (MC_IND_ES[i] || i).toUpperCase() : null; };
+async function mcCargarInd(){
+  const faltan = [...new Set(mcPos.filter(p => { const f = mcFichaDe(p); return !(f && String(f.SUBSECTOR || '').trim()); }).map(p => p.t))]
+    .filter(t => !mcInd[t] || Date.now() - mcInd[t].ts > 30*86400000);
+  if(!faltan.length) return;
+  await mcPool(faltan, 8, async (t) => {
+    try{ const j = await api('/summary/' + encodeURIComponent(t) + '?modules=assetProfile');
+      const i = j?.quoteSummary?.result?.[0]?.assetProfile?.industry; if(i) mcInd[t] = {i, ts:Date.now()}; }catch(e){}
+  });
+  try{ localStorage.setItem('pitinvest_ind', JSON.stringify(mcInd)); }catch(e){}
+  if(vista === 'micartera') pintarMiCartera();
+}
 let mcMetrics = {}, mcInsiders = {}, mcPrimas = {}, mcPrimasTs = 0, mcMercado = null;
 try{ mcPort = localStorage.getItem('pitinvest_mc_port') || 'ALL'; }catch(e){}
 
@@ -1895,6 +1934,7 @@ async function cargarMiCartera(forzar){
   cargarSemana(0); cargarSemana(1);
   mcCargarInsiders().then(mcEscanear);
   mcCargarPrimas();
+  mcCargarInd();
 }
 async function cargarMercadoMC(){
   try{
@@ -2192,6 +2232,22 @@ function pintarMiCartera(){
         <div class="mc-sec-bar"><i style="width:${Math.min(r.peso*100, 100)}%"></i></div></div>` +
         (mcSecOpen[r.s] ? r.pos.map(p => `<div class="mc-sec-mini"><b>${esc(p.t)}</b><span>${p.peso != null ? (p.peso*100).toFixed(1) + '%' : '—'}</span></div>`).join('') : '')).join('')
       : '<div class="vacio">Sin datos.</div>'}</div></div>`;
+  const porSub = {}; let tws = 0;
+  lista.forEach(p => { const k = mcSubDe(p), wi = w(p); if(!k || !wi) return;
+    const x = (porSub[k] = porSub[k] || {w:0, pos:[], sec:{}}); x.w += wi; x.pos.push(p);
+    const sc = (p.sector || '').toUpperCase(); if(sc) x.sec[sc] = (x.sec[sc] || 0) + wi; tws += wi; });
+  const subs = Object.entries(porSub).map(([s, x]) => ({s, peso:x.w/(tws || 1), pos:x.pos,
+    sec: (Object.entries(x.sec).sort((a, b) => b[1] - a[1])[0] || [''])[0].slice(0, 3)}));
+  const ssd = mcSubSort.dir === 'desc' ? -1 : 1;
+  subs.sort((a, b) => mcSubSort.col === 's' ? a.s.localeCompare(b.s) * ssd : (a.peso - b.peso) * ssd);
+  const ssh = (c, l) => `<button class="mc-sh ${mcSubSort.col === c ? 'on' : ''}" data-mc-subsort="${c}">${l}${mcSubSort.col === c ? (mcSubSort.dir === 'desc' ? ' ▾' : ' ▴') : ''}</button>`;
+  const ladoSub = `<div class="card mc-side"><div class="card-cab">Subsectores</div><div class="card-cuerpo">
+    <div class="mc-sec-h">${ssh('s','Subsector')}${ssh('peso','Peso')}</div>
+    ${subs.length ? subs.map(r => `<div class="mc-sec" data-mc-sub="${esc(r.s)}">
+        <div class="mc-sec-top"><span>${mcSubOpen[r.s] ? '▾' : '▸'} ${esc(r.s)}</span><span class="mc-sub-sec">${esc(r.sec)}</span><span>${(r.peso*100).toFixed(1)}%</span></div>
+        <div class="mc-sec-bar"><i style="width:${Math.min(r.peso*100, 100)}%"></i></div></div>` +
+        (mcSubOpen[r.s] ? r.pos.map(p => `<div class="mc-sec-mini"><b>${esc(p.t)}</b><span>${p.peso != null ? (p.peso*100).toFixed(1) + '%' : '—'}</span></div>`).join('') : '')).join('')
+      : '<div class="vacio">Sin datos.</div>'}</div></div>`;
   const res = mcResultados(tset);
   const ladoRes = `<div class="card mc-side"><div class="card-cab">Resultados</div><div class="card-cuerpo">${res.length ? [0, 1].map(off => {
       const its = res.filter(r => r.off === off); if(!its.length) return '';
@@ -2209,7 +2265,7 @@ function pintarMiCartera(){
   const cuerpo = mcVista === 'fund' ? tablaFundMC(lista) : mcVista === 'tec' ? tablaTecMC(lista) : tabla;
   el.innerHTML = cab + mercado + `<div class="mc-grid"><div>${pestanas}${sub}${cuerpo}
     </div>
-    <aside>${ladoFng}${ladoSec}${ladoRes}${ladoIns}</aside></div>`;
+    <aside>${ladoFng}${ladoSec}${ladoSub}${ladoRes}${ladoIns}</aside></div>`;
 }
 $('#micartera').addEventListener('click', e => {
   const t = (s) => e.target.closest(s); let b;
@@ -2226,6 +2282,10 @@ $('#micartera').addEventListener('click', e => {
   else if((b = t('[data-mc-ssort]'))){ const c = b.dataset.mcSsort;
     if(mcSecSort.col === c) mcSecSort.dir = mcSecSort.dir === 'desc' ? 'asc' : 'desc'; else mcSecSort = {col:c, dir:c === 's' ? 'asc' : 'desc'};
     pintarMiCartera(); }
+  else if((b = t('[data-mc-subsort]'))){ const c = b.dataset.mcSubsort;
+    if(mcSubSort.col === c) mcSubSort.dir = mcSubSort.dir === 'desc' ? 'asc' : 'desc'; else mcSubSort = {col:c, dir:c === 's' ? 'asc' : 'desc'};
+    pintarMiCartera(); }
+  else if((b = t('[data-mc-sub]'))){ const k = b.dataset.mcSub; mcSubOpen[k] = !mcSubOpen[k]; pintarMiCartera(); }
   else if((b = t('[data-mc-sec]'))){ const k = b.dataset.mcSec; mcSecOpen[k] = !mcSecOpen[k]; pintarMiCartera(); }
   else if((b = t('[data-mc-ir]'))){
     const [tk, port] = b.dataset.mcIr.split('|'), p = mcPos.find(x => x.t === tk && x.port === port), f = p && mcFichaDe(p);
